@@ -1,0 +1,23 @@
+- complementary:
+  - navigation "App-Navigation":
+    - link "Heute":
+      - /url: /app
+      - generic: Heute
+    - link "Meine Decks":
+      - /url: /app/decks
+      - generic: Meine Decks
+    - link "Entdecken":
+      - /url: /community
+      - generic: Entdecken
+  - link "Einstellungen":
+    - /url: /app/settings
+    - generic: Einstellungen
+- main:
+  - 'generic "Ausgewähltes Lernset: Zahlen · Français"':
+    - generic: Zahlen · Français
+  - generic: Lernen · 1 / 9
+  - generic: FRAGE
+  - paragraph:
+    - text: "21"
+    - button "Satz mit Lücken vorlesen":
+  - button "Antwort zeigen"

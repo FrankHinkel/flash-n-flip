@@ -1,0 +1,13 @@
+{
+  "configuration": "TestFlight, unsigned device build",
+  "productVersion": "0.5.2",
+  "marketingVersion": "0.5",
+  "appleBuild": "5",
+  "checkedFiles": 160,
+  "projectMismatches": [],
+  "compiledMismatches": [],
+  "iconAudit": "passed",
+  "sceneDelegateSha256": "bafcdb37aa761d80878beb83f9dc0eaa2a8f6d41031e9fe73b57c90d173b1982",
+  "appJsSha256": "3e6f7a4f0afa7f66398f9e19cedc020f2c21806d957a1e8c257b06b2ef15b6a6",
+  "uploaded": false
+}

@@ -17,6 +17,8 @@ import { localCardPayloadSchema } from "@flashcards/domain/local-app-data";
 import { mermaidDiagramExamples } from "@flashcards/domain/mermaid-diagram";
 import { jsxGraphExamples } from "@flashcards/domain/jsx-graph";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
+import { LocalAppRepository } from "@flashcards/direct-connect-webstack/local-app";
+import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
 
 import {
   commitLocalDeckEditor,
@@ -33,6 +35,8 @@ import {
   importLocalFilePackage,
   importLocalTextDeck,
   installLocalNumberCollection,
+  installLocalFixedNumberPractice,
+  localFixedNumberPracticeSettings,
   listLocalProductDeckMetadata,
   listLocalNamedStudyPlans,
   listLocalProductDecks,
@@ -2352,6 +2356,102 @@ describe("original Web UI local product repository", () => {
     });
     expect(reinstalled.selectedDeckId).toBe(installed.selectedDeckId);
     expect(await localDueCards(reinstalled.pairDeckId, true)).toHaveLength(5);
+  });
+
+  it("keeps each French number and review identity through narrowing, expanding and repeated setup", async () => {
+    const settings = {
+      targetLocale: "fr-FR",
+      bands: ["0-10", "11-100"],
+      allBelowHundred: false,
+    } as const;
+    const input = { ...settings, bands: [...settings.bands] };
+    const first = await installLocalFixedNumberPractice(input, "de");
+    const queue = await localDueCards(first.deckId, true);
+    expect(queue).toHaveLength(35);
+    const card = queue.find(
+      (due) => (due.card.front.blocks[0] as { text: string }).text === "71",
+    )!.card;
+    const mutationId = createId();
+    const review = {
+      mutationId,
+      cardId: card.id,
+      rating: "GOOD" as const,
+      reviewedAt: "2026-10-31T10:00:00.000Z",
+    };
+    await recordLocalProductReview(review);
+    await expect(recordLocalProductReview(review)).rejects.toThrow(
+      "Review event identity already exists",
+    );
+    const repository = await localProductRepository();
+    const reviewed = (await repository.listCards()).find(
+      (entry) => entry.id === card.id,
+    )!.payload.state;
+    expect(reviewed.reps).toBe(1);
+    await installLocalFixedNumberPractice(
+      { ...input, allBelowHundred: true },
+      "de",
+    );
+    expect(await localDueCards(first.deckId, true)).toHaveLength(101);
+    await installLocalFixedNumberPractice({ ...input, bands: ["0-10"] }, "de");
+    expect(await localDueCards(first.deckId, true)).toHaveLength(11);
+    const narrowed = (await getLocalProductDeck(first.deckId))!.cards.find(
+      (entry) => entry.id === card.id,
+    )!;
+    expect(narrowed.suspended).toBe(true);
+    expect(
+      (await repository.listCards()).find((entry) => entry.id === card.id)!
+        .payload.state,
+    ).toEqual(reviewed);
+    const repeated = await installLocalFixedNumberPractice(input, "de");
+    expect(repeated.deckId).toBe(first.deckId);
+    const restored = (await getLocalProductDeck(first.deckId))!.cards.find(
+      (entry) => entry.id === card.id,
+    )!;
+    expect(restored.suspended).toBe(false);
+    expect(
+      (await repository.listCards()).find((entry) => entry.id === card.id)!
+        .payload.state,
+    ).toEqual(reviewed);
+    expect(restored.front).toEqual(card.front);
+    expect(await localDueCards(first.deckId, true)).toHaveLength(35);
+    expect(await localFixedNumberPracticeSettings("fr-FR")).toEqual(input);
+    const reopened = new LocalAppRepository(
+      (await getOrCreateDeviceIdentity()).id,
+    );
+    expect((await reopened.getCard(card.id))!.payload.state).toEqual(reviewed);
+    const backup = await exportLocalProductData();
+    await deleteAuthorityDatabase();
+    await restoreLocalProductData(backup);
+    expect(await localFixedNumberPracticeSettings("fr-FR")).toEqual(input);
+    expect((await reopened.getCard(card.id))!.payload.state).toEqual(reviewed);
+    expect(await localDueCards(first.deckId, true)).toHaveLength(35);
+  });
+
+  it("keeps legacy number history and other target languages when setting up fixed practice", async () => {
+    const legacy = await installLocalNumberCollection({
+      sourceLocale: "de-DE",
+      targetLocale: "fr-FR",
+      maximum: 100,
+      uiLocale: "de",
+    });
+    const before = await getLocalProductDeck(legacy.pairDeckId);
+    const french = await installLocalFixedNumberPractice(
+      { targetLocale: "fr-FR", bands: ["11-100"], allBelowHundred: false },
+      "de",
+    );
+    const english = await installLocalFixedNumberPractice(
+      { targetLocale: "en-US", bands: ["101-1000"], allBelowHundred: false },
+      "de",
+    );
+    expect(english.deckId).not.toBe(french.deckId);
+    expect(await getLocalProductDeck(legacy.pairDeckId)).toEqual(before);
+    expect(await localDueCards(french.deckId, true)).toHaveLength(24);
+    expect(
+      (await localDueCards(english.deckId, true)).every(
+        (due) =>
+          Number((due.card.front.blocks[0] as { text: string }).text) > 100,
+      ),
+    ).toBe(true);
   });
 
   it("updates curated content without resetting progress or deleting a retracted local copy", async () => {

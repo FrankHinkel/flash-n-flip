@@ -1,4 +1,5 @@
 import type { CardContent } from "./content.js";
+export * from "./number-practice.js";
 import {
   formatNumberDigits,
   numberLanguages,

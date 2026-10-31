@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   createOverviewTabSymbol,
   createBrandThemes,
+  createAppleAppIconCatalog,
   extractBrandColors,
   sanitizeBrandSvg,
 } from "./generate-brand-assets.mjs";
@@ -39,6 +40,48 @@ test("sanitizes the checked-in brand SVG", () => {
     navy: "#0C276C",
     blue: "#0F6AFA",
   });
+});
+
+test("declares a dedicated opaque App Store image and all iPhone/iPad icon roles", () => {
+  const { images } = createAppleAppIconCatalog();
+  assert.deepEqual(
+    images.filter((image) => image.idiom === "ios-marketing"),
+    [
+      {
+        idiom: "ios-marketing",
+        size: "1024x1024",
+        scale: "1x",
+        filename: "AppIcon-1024.png",
+      },
+    ],
+  );
+  for (const [idiom, size, scale] of [
+    ["iphone", "20x20", "2x"],
+    ["iphone", "20x20", "3x"],
+    ["iphone", "29x29", "2x"],
+    ["iphone", "29x29", "3x"],
+    ["iphone", "40x40", "2x"],
+    ["iphone", "40x40", "3x"],
+    ["iphone", "60x60", "2x"],
+    ["iphone", "60x60", "3x"],
+    ["ipad", "20x20", "1x"],
+    ["ipad", "20x20", "2x"],
+    ["ipad", "29x29", "1x"],
+    ["ipad", "29x29", "2x"],
+    ["ipad", "40x40", "1x"],
+    ["ipad", "40x40", "2x"],
+    ["ipad", "76x76", "1x"],
+    ["ipad", "76x76", "2x"],
+    ["ipad", "83.5x83.5", "2x"],
+  ]) {
+    assert.ok(
+      images.some(
+        (image) =>
+          image.idiom === idiom && image.size === size && image.scale === scale,
+      ),
+      `${idiom} ${size} ${scale}`,
+    );
+  }
 });
 
 test("derives the monochrome native tab symbol from the canonical geometry", () => {

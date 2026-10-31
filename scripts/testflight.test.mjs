@@ -2,10 +2,50 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertAppIdentity,
+  assertAppIcons,
   assertUnusedInitialBuild,
   assertDistributionEntitlements,
   assertExportOptions,
 } from "../apps/apple/scripts/testflight.mjs";
+
+test("the upload audit requires the built App Store icon, iPhone/iPad bindings and icon files", () => {
+  const primary = {
+    CFBundlePrimaryIcon: {
+      CFBundleIconName: "AppIcon",
+      CFBundleIconFiles: ["AppIcon60x60"],
+    },
+  };
+  const metadata = { CFBundleIcons: primary, "CFBundleIcons~ipad": primary };
+  const marketing = {
+    AssetType: "Icon Image",
+    Name: "AppIcon",
+    Idiom: "marketing",
+    PixelWidth: 1024,
+    PixelHeight: 1024,
+    Opaque: true,
+  };
+  const files = ["Assets.car", "AppIcon60x60@2x.png"];
+  assert.doesNotThrow(() => assertAppIcons(metadata, [marketing], files));
+  for (const changed of [
+    { Name: "OtherIcon" },
+    { Idiom: "phone" },
+    { PixelWidth: 512 },
+    { PixelHeight: 512 },
+    { Opaque: false },
+  ])
+    assert.throws(() =>
+      assertAppIcons(metadata, [{ ...marketing, ...changed }], files),
+    );
+  assert.throws(() => assertAppIcons(metadata, [], files));
+  assert.throws(() => assertAppIcons({}, [marketing], files));
+  assert.throws(() =>
+    assertAppIcons({ CFBundleIcons: primary }, [marketing], files),
+  );
+  assert.throws(() => assertAppIcons(metadata, [marketing], ["Assets.car"]));
+  assert.throws(() =>
+    assertAppIcons(metadata, [marketing], ["AppIcon60x60@2x.png"]),
+  );
+});
 
 const options = () => ({
   method: "app-store-connect",

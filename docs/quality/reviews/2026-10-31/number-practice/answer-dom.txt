@@ -1,0 +1,43 @@
+- main:
+  - 'generic "Ausgewähltes Lernset: Zahlen · Français"':
+    - generic: Zahlen · Français
+  - generic: Lernen · 1 / 10
+  - button "Frage einklappen" [expanded]:
+  - region "Frage zur Antwort":
+    - generic: FRAGE
+    - paragraph:
+      - text: "80"
+      - button "Satz mit Lücken vorlesen":
+  - separator "Höhenverhältnis von Frage und Antwort ändern"
+  - generic: ANTWORT
+  - paragraph: "80"
+  - paragraph:
+    - text: quatre-vingts
+    - button "Vollständige Antwort vorlesen":
+  - status: Wie gut wusstest du es?
+  - generic "Was bedeuten die Bewertungen?"
+  - button "Nicht gewusst, 1 Min.":
+    - strong: Nicht gewusst
+    - generic: 1 Min.
+  - button "Mit Mühe, 6 Min.":
+    - strong: Mit Mühe
+    - generic: 6 Min.
+  - button "Gewusst, 10 Min.":
+    - strong: Gewusst
+    - generic: 10 Min.
+  - button "Sehr leicht, 9 Tage":
+    - strong: Sehr leicht
+    - generic: 9 Tage
+- navigation "Mobile App-Navigation":
+  - link "Heute":
+    - /url: /app
+    - generic: Heute
+  - link "Meine Decks":
+    - /url: /app/decks
+    - generic: Meine Decks
+  - link "Entdecken":
+    - /url: /community
+    - generic: Entdecken
+  - link "Einstellungen":
+    - /url: /app/settings
+    - generic: Einstellungen

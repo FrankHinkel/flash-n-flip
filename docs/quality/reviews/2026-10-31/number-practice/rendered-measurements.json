@@ -1,0 +1,883 @@
+{
+  "scenarios": [
+    {
+      "colors": [
+        {
+          "background": "color(srgb 0.968157 0.953176 0.893255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "36px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "H1",
+          "text": "Zahlen üben"
+        },
+        {
+          "background": "color(srgb 0.968157 0.953176 0.893255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Wähle deine Zielsprache und die Zahlenbereiche."
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "ZielspracheAmharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dän"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "SELECT",
+          "text": "Amharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dänisch (Dänem"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LEGEND",
+          "text": "Zahlenbereiche"
+        },
+        {
+          "background": "color(srgb 0.877647 0.909804 0.952157)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "0–10"
+        },
+        {
+          "background": "color(srgb 0.877647 0.909804 0.952157)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "11–100"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "101–1000"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "Alle 90 Zahlen von 11 bis 100 üben"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Eine kompakte Auswahl für die Zählmuster dieser Sprache. Die Ziffer bleibt immer sichtbar."
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "P",
+          "text": "35 Übungszahlen"
+        },
+        {
+          "background": "rgb(15, 106, 250)",
+          "color": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "BUTTON",
+          "text": "Lernen starten"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Deine Übung findest du anschließend in Meine Decks. Die Bereiche kannst du hier später änd"
+        }
+      ],
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "target",
+          "rect": {
+            "bottom": 278.59375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 203.84765625
+          },
+          "selector": ".number-target-field",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-0",
+          "rect": {
+            "bottom": 369.3359375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 321.337890625
+          },
+          "selector": ".number-range-option:nth-of-type(1)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-1",
+          "rect": {
+            "bottom": 425.33203125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 377.333984375
+          },
+          "selector": ".number-range-option:nth-of-type(2)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-2",
+          "rect": {
+            "bottom": 481.328125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 433.330078125
+          },
+          "selector": ".number-range-option:nth-of-type(3)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "all",
+          "rect": {
+            "bottom": 546.826171875,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 489.326171875
+          },
+          "selector": ".number-all-option",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "count",
+          "rect": {
+            "bottom": 669.55078125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 650.80078125
+          },
+          "selector": ".number-setup-count",
+          "visible": true
+        },
+        {
+          "clearance": 10,
+          "id": "start",
+          "rect": {
+            "bottom": 729.541015625,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 685.546875
+          },
+          "selector": ".number-setup-form button[type=\"submit\"]",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "navigation",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 774.55078125
+          },
+          "selector": "nav[aria-label*=\"Mobile\"]",
+          "visible": true
+        }
+      ],
+      "name": "mobile-bright-35",
+      "scrollWidth": 390,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "colors": [
+        {
+          "background": "color(srgb 0.968157 0.953176 0.893255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "36px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "H1",
+          "text": "Zahlen üben"
+        },
+        {
+          "background": "color(srgb 0.968157 0.953176 0.893255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Wähle deine Zielsprache und die Zahlenbereiche."
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "ZielspracheAmharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dän"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "SELECT",
+          "text": "Amharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dänisch (Dänem"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LEGEND",
+          "text": "Zahlenbereiche"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "0–10"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "11–100"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "101–1000"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Eine kompakte Auswahl für die Zählmuster dieser Sprache. Die Ziffer bleibt immer sichtbar."
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(12, 39, 108)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Wähle mindestens einen Zahlenbereich."
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "BUTTON",
+          "text": "Lernen starten"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(102, 107, 117)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Deine Übung findest du anschließend in Meine Decks. Die Bereiche kannst du hier später änd"
+        }
+      ],
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "target",
+          "rect": {
+            "bottom": 262.34375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 187.59765625
+          },
+          "selector": ".number-target-field",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-0",
+          "rect": {
+            "bottom": 353.0859375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 305.087890625
+          },
+          "selector": ".number-range-option:nth-of-type(1)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-1",
+          "rect": {
+            "bottom": 409.08203125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 361.083984375
+          },
+          "selector": ".number-range-option:nth-of-type(2)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-2",
+          "rect": {
+            "bottom": 465.078125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 417.080078125
+          },
+          "selector": ".number-range-option:nth-of-type(3)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "count",
+          "rect": {
+            "bottom": 606.552734375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 569.052734375
+          },
+          "selector": ".number-setup-count",
+          "visible": true
+        },
+        {
+          "clearance": 10,
+          "id": "start",
+          "rect": {
+            "bottom": 666.54296875,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 622.548828125
+          },
+          "selector": ".number-setup-form button[type=\"submit\"]",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "navigation",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 774.55078125
+          },
+          "selector": "nav[aria-label*=\"Mobile\"]",
+          "visible": true
+        }
+      ],
+      "name": "mobile-bright-empty",
+      "scrollWidth": 390,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "colors": [
+        {
+          "background": "color(srgb 0.107294 0.119216 0.14902)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "46.8px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "H1",
+          "text": "Zahlen üben"
+        },
+        {
+          "background": "color(srgb 0.107294 0.119216 0.14902)",
+          "color": "rgb(216, 217, 221)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Wähle deine Zielsprache und die Zahlenbereiche."
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "ZielspracheAmharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dän"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "SELECT",
+          "text": "Amharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dänisch (Dänem"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LEGEND",
+          "text": "Zahlenbereiche"
+        },
+        {
+          "background": "color(srgb 0.126353 0.203451 0.337255)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "0–10"
+        },
+        {
+          "background": "color(srgb 0.126353 0.203451 0.337255)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "11–100"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "101–1000"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "Alle 90 Zahlen von 11 bis 100 üben"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(216, 217, 221)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Eine kompakte Auswahl für die Zählmuster dieser Sprache. Die Ziffer bleibt immer sichtbar."
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "P",
+          "text": "35 Übungszahlen"
+        },
+        {
+          "background": "rgb(15, 106, 250)",
+          "color": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "BUTTON",
+          "text": "Lernen starten"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(216, 217, 221)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Deine Übung findest du anschließend in Meine Decks. Die Bereiche kannst du hier später änd"
+        }
+      ],
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "target",
+          "rect": {
+            "bottom": -238.28125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": -318.65234375
+          },
+          "selector": ".number-target-field",
+          "visible": false
+        },
+        {
+          "clearance": 0,
+          "id": "band-0",
+          "rect": {
+            "bottom": -141.787109375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": -189.912109375
+          },
+          "selector": ".number-range-option:nth-of-type(1)",
+          "visible": false
+        },
+        {
+          "clearance": 0,
+          "id": "band-1",
+          "rect": {
+            "bottom": -85.6640625,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": -133.7890625
+          },
+          "selector": ".number-range-option:nth-of-type(2)",
+          "visible": false
+        },
+        {
+          "clearance": 0,
+          "id": "band-2",
+          "rect": {
+            "bottom": -29.541015625,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": -77.666015625
+          },
+          "selector": ".number-range-option:nth-of-type(3)",
+          "visible": false
+        },
+        {
+          "clearance": 0,
+          "id": "all",
+          "rect": {
+            "bottom": 47.20703125,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": -21.54296875
+          },
+          "selector": ".number-all-option",
+          "visible": false
+        },
+        {
+          "clearance": 0,
+          "id": "count",
+          "rect": {
+            "bottom": 197.177734375,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 172.802734375
+          },
+          "selector": ".number-setup-count",
+          "visible": true
+        },
+        {
+          "clearance": 10,
+          "id": "start",
+          "rect": {
+            "bottom": 257.16796875,
+            "left": 34.619140625,
+            "right": 336.62109375,
+            "top": 213.173828125
+          },
+          "selector": ".number-setup-form button[type=\"submit\"]",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "navigation",
+          "rect": {
+            "bottom": 520,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 441.142578125
+          },
+          "selector": "nav[aria-label*=\"Mobile\"]",
+          "visible": true
+        }
+      ],
+      "name": "short-dark-large-end",
+      "scrollWidth": 390,
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    },
+    {
+      "colors": [
+        {
+          "background": "color(srgb 0.107294 0.119216 0.14902)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "36px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "H1",
+          "text": "Zahlen üben"
+        },
+        {
+          "background": "color(srgb 0.107294 0.119216 0.14902)",
+          "color": "rgb(216, 217, 221)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Wähle deine Zielsprache und die Zahlenbereiche."
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "ZielspracheAmharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dän"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "SELECT",
+          "text": "Amharisch (Äthiopien)Arabisch (Saudi-Arabien)Chinesisch (Vereinfacht, China)Dänisch (Dänem"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "LEGEND",
+          "text": "Zahlenbereiche"
+        },
+        {
+          "background": "color(srgb 0.126353 0.203451 0.337255)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "0–10"
+        },
+        {
+          "background": "color(srgb 0.126353 0.203451 0.337255)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "11–100"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "101–1000"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "LABEL",
+          "text": "Alle 90 Zahlen von 11 bis 100 üben"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(216, 217, 221)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Eine kompakte Auswahl für die Zählmuster dieser Sprache. Die Ziffer bleibt immer sichtbar."
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "P",
+          "text": "35 Übungszahlen"
+        },
+        {
+          "background": "rgb(15, 106, 250)",
+          "color": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "opacity": "1",
+          "selector": "BUTTON",
+          "text": "Lernen starten"
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "color": "rgb(216, 217, 221)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "opacity": "1",
+          "selector": "P",
+          "text": "Deine Übung findest du anschließend in Meine Decks. Die Bereiche kannst du hier später änd"
+        }
+      ],
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "target",
+          "rect": {
+            "bottom": 254.599609375,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 179.853515625
+          },
+          "selector": ".number-target-field",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-0",
+          "rect": {
+            "bottom": 345.341796875,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 297.34375
+          },
+          "selector": ".number-range-option:nth-of-type(1)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-1",
+          "rect": {
+            "bottom": 401.337890625,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 353.33984375
+          },
+          "selector": ".number-range-option:nth-of-type(2)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "band-2",
+          "rect": {
+            "bottom": 457.333984375,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 409.3359375
+          },
+          "selector": ".number-range-option:nth-of-type(3)",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "all",
+          "rect": {
+            "bottom": 513.330078125,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 465.33203125
+          },
+          "selector": ".number-all-option",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "count",
+          "rect": {
+            "bottom": 612.060546875,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 593.310546875
+          },
+          "selector": ".number-setup-count",
+          "visible": true
+        },
+        {
+          "clearance": 10,
+          "id": "start",
+          "rect": {
+            "bottom": 672.05078125,
+            "left": 544.619140625,
+            "right": 1147.373046875,
+            "top": 628.056640625
+          },
+          "selector": ".number-setup-form button[type=\"submit\"]",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "navigation",
+          "rect": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          },
+          "selector": "nav[aria-label*=\"Mobile\"]",
+          "visible": true
+        }
+      ],
+      "name": "desktop-dark-35",
+      "scrollWidth": 1440,
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      }
+    }
+  ]
+}

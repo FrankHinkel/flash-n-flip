@@ -1,0 +1,6 @@
+PASS overview bottom, bright, large text: no overlap or clearance violations
+PASS overview end, dark, 390x520, large text: no overlap or clearance violations
+PASS desktop dark 1440x900 large text: no overlap or clearance violations
+PASS reference preview controls, dark, 390x520, large text: no overlap or clearance violations
+PASS statistics added, bright 390x844 normal text: no overlap or clearance violations
+PASS final overview after install and return, bright 390x844 normal text: no overlap or clearance violations

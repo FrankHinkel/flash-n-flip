@@ -1,0 +1,26 @@
+The following is a diff from the previous accessibility tree for Window: "Flash-n-Flip" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 28-52
+~	24 container Secondary Actions: Cancel
+~		25 container Secondary Actions: Cancel
+~			26 container Description: Flash-n-Flip, URL: capacitor://localhost/app/decks, Secondary Actions: Cancel
+~				27 container Description: main, Secondary Actions: Cancel
++					28 heading Description: My decks, Value: 1, Secondary Actions: Cancel
++					29 text Description: Available on this device, Secondary Actions: Cancel
++					30 link Description: Import, Value: capacitor://localhost/app/decks/import, Secondary Actions: Cancel
++					31 link Description: New, Value: capacitor://localhost/app/decks/new, Secondary Actions: Cancel
++					32 text Description: Mein Lernplan, Secondary Actions: Cancel
++					33 button Description: Edit learning plan, Secondary Actions: Cancel
++					34 pop up button Description: Manage active learning plan, Secondary Actions: Cancel
++					35 text Description: Search decks, Secondary Actions: Cancel
++					36 text field (settable) Description: Search decks, Value: searchable, Placeholder: Search title, description, or tag …, Secondary Actions: Cancel
++					37 switch Description: Decks, Value: 1, Secondary Actions: Cancel
++					38 switch Description: Learning, Value: 0, Secondary Actions: Cancel
++					39 switch Description: Hidden, Value: 0, Secondary Actions: Cancel
++					40 heading Description: Nothing here yet., Value: 2, Secondary Actions: Cancel
++					41 text Description: Create a deck, import one, or discover a collection., Secondary Actions: Cancel
++				42 container Description: Mobile app navigation, navigation, Secondary Actions: Cancel
++					43 link Description: Today, Value: capacitor://localhost/app, Secondary Actions: Cancel
++					44 link Description: My decks, Value: capacitor://localhost/app/decks, Secondary Actions: Cancel
++					45 link Description: Discover, Value: capacitor://localhost/community, Secondary Actions: Cancel
++					46 link Description: Settings, Value: capacitor://localhost/app/settings, Secondary Actions: Cancel
+The focused UI element is 25 container Secondary Actions: Cancel

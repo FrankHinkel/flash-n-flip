@@ -1,0 +1,8 @@
+{
+  "background": "rgb(255, 255, 255)",
+  "foreground": "rgb(12, 39, 108)",
+  "label": "SprachenWortschatz, Verben und Zahlen",
+  "outline": "rgb(15, 106, 250) solid 2.5px",
+  "outlineOffset": "2.5px",
+  "tag": "A"
+}

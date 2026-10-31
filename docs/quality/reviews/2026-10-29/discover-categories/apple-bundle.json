@@ -1,0 +1,12 @@
+{
+  "configuration": "TestFlight, unsigned device build",
+  "productVersion": "0.5.2",
+  "marketingVersion": "0.5",
+  "appleBuild": "5",
+  "checkedFiles": 160,
+  "projectMismatches": [],
+  "compiledMismatches": [],
+  "iconAudit": "passed",
+  "appJsSha256": "3e6f7a4f0afa7f66398f9e19cedc020f2c21806d957a1e8c257b06b2ef15b6a6",
+  "uploaded": false
+}

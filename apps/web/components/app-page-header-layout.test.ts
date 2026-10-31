@@ -39,7 +39,7 @@ describe("application page headers", () => {
     expect(communityBrowser).not.toContain("community-hero");
     expect(communityBrowser).not.toContain("Curated downloads");
     expect(communityBrowser).not.toContain("Kuratierte Downloads");
-    expect(deckCatalog).toContain('<h1 id="discover-collections-title">');
+    expect(deckCatalog).toContain('id="discover-collections-title"');
   });
 
   it("centers the help header as another application view", () => {

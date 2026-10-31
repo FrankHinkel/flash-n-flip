@@ -1,3 +1,5 @@
+import { discoverUiMessages } from "./discover-ui-messages.js";
+import { numberUiMessages } from "./number-ui-messages.js";
 import { simplifiedUiMessages } from "./simplified-ui-messages.js";
 import { generatedUiMessages } from "./ui-messages.generated.js";
 
@@ -910,6 +912,12 @@ const semanticUiMessages = {
     es: "La conexión ha fallado. Comprueba tu red e inténtalo de nuevo.",
     fr: "La connexion a échoué. Vérifiez votre réseau et réessayez.",
   },
+  "editor.error.localSave": {
+    en: "Saving on this device failed. Please try again.",
+    de: "Das Speichern auf diesem Gerät ist fehlgeschlagen. Versuche es erneut.",
+    es: "No se pudo guardar en este dispositivo. Inténtalo de nuevo.",
+    fr: "L’enregistrement sur cet appareil a échoué. Réessayez.",
+  },
   "markdown.error.invalidPosition": {
     en: "Every numbered cloze needs its own position from 1 to 500. Remove duplicate position numbers.",
     de: "Jede nummerierte Lücke braucht eine eigene Position zwischen 1 und 500. Entferne doppelte Positionsnummern.",
@@ -1449,6 +1457,8 @@ const semanticUiMessages = {
 export const uiMessages = {
   ...semanticUiMessages,
   ...simplifiedUiMessages,
+  ...discoverUiMessages,
+  ...numberUiMessages,
   ...generatedUiMessages,
 } as const;
 export type UiMessageKey = keyof typeof uiMessages;

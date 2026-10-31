@@ -36,11 +36,16 @@ import {
 } from "@flashcards/domain";
 import {
   createNumberCollectionDeckSeeds,
+  createFixedNumberPracticeSeed,
+  fixedNumberPracticeKey,
+  numberPracticeSettingsFromTags,
+  numberPracticeValues,
   numberCollectionPairKey,
   numberCollectionSequenceFromTags,
   numberCollectionTemplate,
   numberCollectionTemplateKey,
   renderNumberExerciseCard,
+  type NumberPracticeSettings,
 } from "@flashcards/domain/number-collection";
 import type {
   NumberLocale,
@@ -1778,6 +1783,86 @@ export async function localNumberCollectionTemplate() {
     ...numberCollectionTemplate,
     installedDeckId: installed?.id ?? null,
   };
+}
+
+export async function localFixedNumberPracticeSettings(target: NumberLocale) {
+  const repository = await localProductRepository();
+  const deck = (await repository.listDecks()).find(
+    (entry) =>
+      entry.payload.sourceTemplateKey === fixedNumberPracticeKey(target),
+  );
+  return deck ? numberPracticeSettingsFromTags(deck.payload.tags) : null;
+}
+
+export async function installLocalFixedNumberPractice(
+  settings: NumberPracticeSettings,
+  uiLocale: Locale,
+): Promise<{ deckId: string; count: number }> {
+  const seed = await createFixedNumberPracticeSeed(settings, uiLocale);
+  const repository = await localProductRepository();
+  const deckId = await stableLocalTemplateUuid("deck", seed.key);
+  const oldDeck = (await repository.listDecks()).find(
+    (deck) => deck.id === deckId,
+  );
+  const oldSettings = oldDeck
+    ? numberPracticeSettingsFromTags(oldDeck.payload.tags)
+    : null;
+  const oldSelection = new Set(
+    oldSettings ? numberPracticeValues(oldSettings) : [],
+  );
+  const selected = new Set(numberPracticeValues(settings));
+  const existingCards = new Map(
+    (await repository.listCards())
+      .filter((card) => card.payload.deckId === deckId)
+      .map((card) => [card.id, card]),
+  );
+  const cards: LocalManagedCardSeed[] = [...seed.cards];
+  // Keep stable per-number identities and all review state when narrowing the
+  // selection. The existing managed installer commits the deck and cards in one
+  // durable transaction. Legacy variable-content v2 exercises stay untouched.
+  if (existingCards.size) {
+    const identities = await Promise.all(
+      Array.from({ length: 1001 }, async (_, value) => ({
+        value,
+        id: await stableLocalTemplateUuid(
+          `deck:${seed.key}`,
+          `card:number:${value}`,
+        ),
+      })),
+    );
+    for (const { value, id } of identities) {
+      const existing = existingCards.get(id);
+      if (!existing) continue;
+      if (selected.has(value)) {
+        const card = cards.find((card) => card.key === `number:${value}`)!;
+        card.suspended = oldSelection.has(value)
+          ? existing.payload.suspended
+          : false;
+      } else {
+        cards.push({
+          key: `number:${value}`,
+          front: existing.payload.front,
+          back: existing.payload.back,
+          questionLocale: existing.payload.questionLocale,
+          answerLocale: existing.payload.answerLocale,
+          translations: existing.payload.translations,
+          kind: existing.payload.kind,
+          usage: existing.payload.usage,
+          linkedToPrevious: existing.payload.linkedToPrevious,
+          suspended: true,
+        });
+      }
+    }
+  }
+  await installLocalManagedDeckTree([
+    {
+      ...seed,
+      cards,
+      language: settings.targetLocale,
+      defaultContentLocale: settings.targetLocale,
+    },
+  ]);
+  return { deckId, count: selected.size };
 }
 
 export async function installLocalNumberCollection(input: {

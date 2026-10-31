@@ -39,4 +39,15 @@ describe("editorSaveError", () => {
       "Die Verbindung ist fehlgeschlagen. Prüfe dein Netzwerk und versuche es erneut.",
     );
   });
+  it("does not tell learners to fix their network for a local persistence failure", () => {
+    expect(
+      editorSaveError(
+        new Error("Local payload must not contain undefined values"),
+        "de",
+        "deck",
+      ),
+    ).toBe(
+      "Das Speichern auf diesem Gerät ist fehlgeschlagen. Versuche es erneut.",
+    );
+  });
 });

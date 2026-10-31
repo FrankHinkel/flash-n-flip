@@ -1,0 +1,71 @@
+- complementary:
+  - link "Flash-n-Flip Startseite":
+    - /url: /app
+    - generic: Flash-n-Flip
+  - navigation "App-Navigation":
+    - link "Heute":
+      - /url: /app
+      - generic: Heute
+    - link "Meine Decks":
+      - /url: /app/decks
+      - generic: Meine Decks
+    - link "Entdecken":
+      - /url: /community
+      - generic: Entdecken
+  - link "Einstellungen":
+    - /url: /app/settings
+    - generic: Einstellungen
+- main:
+  - link "Sprachen":
+    - /url: /community?category=languages
+  - heading "Zahlen üben" [level=1]
+  - paragraph: Wähle deine Zielsprache und die Zahlenbereiche.
+  - generic: Zielsprache
+  - combobox "Zielsprache":
+    - option "Amharisch (Äthiopien)"
+    - option "Arabisch (Saudi-Arabien)"
+    - option "Chinesisch (Vereinfacht, China)"
+    - option "Dänisch (Dänemark)"
+    - option "Deutsch (Deutschland)"
+    - option "Englisch (Vereinigte Staaten)"
+    - option "Filipino (Philippinen)"
+    - option "Finnisch (Finnland)"
+    - option "Französisch (Frankreich)"
+    - option "Georgisch (Georgien)"
+    - option "Griechisch (Griechenland)"
+    - option "Hebräisch (Israel)"
+    - option "Hindi (Indien)" [selected]
+    - option "Indonesisch (Indonesien)"
+    - option "Italienisch (Italien)"
+    - option "Japanisch (Japan)"
+    - option "Koreanisch (sino-koreanische Zahlen)"
+    - option "Lettisch (Lettland)"
+    - option "Litauisch (Litauen)"
+    - option "Niederländisch (Niederlande)"
+    - option "Norwegisch (Bokmål) (Norwegen)"
+    - option "Persisch (Iran)"
+    - option "Polnisch (Polen)"
+    - option "Russisch (Russland)"
+    - option "Schwedisch (Schweden)"
+    - option "Serbisch (Kyrillisch, Serbien)"
+    - option "Spanisch (Spanien)"
+    - option "Suaheli (Kenia)"
+    - option "Thailändisch (Thailand)"
+    - option "Türkisch (Türkei)"
+    - option "Ukrainisch (Ukraine)"
+    - option "Ungarisch (Ungarn)"
+    - option "Urdu (Pakistan)"
+    - option "Vietnamesisch (Vietnam)"
+    - option "Yoruba (Nigeria)"
+  - group "Zahlenbereiche":
+    - generic: Zahlenbereiche
+    - checkbox "0–10" [checked]
+    - generic: 0–10
+    - checkbox "11–100" [checked] [active]
+    - generic: 11–100
+    - checkbox "101–1000"
+    - generic: 101–1000
+  - paragraph: Für diese Sprache werden von 11 bis 100 alle Zahlwörter geübt. Die Ziffer bleibt immer sichtbar.
+  - status: 101 Übungszahlen
+  - button "Lernen starten"
+  - paragraph: Deine Übung findest du anschließend in Meine Decks. Die Bereiche kannst du hier später ändern; dein Fortschritt bleibt erhalten.

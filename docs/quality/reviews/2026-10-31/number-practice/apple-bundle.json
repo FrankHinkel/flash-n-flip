@@ -1,0 +1,18 @@
+{
+  "configuration": "TestFlight, unsigned generic iOS device build",
+  "productVersion": "0.5.3",
+  "marketingVersion": "0.5",
+  "appleBuild": "6",
+  "checkedFiles": 160,
+  "projectMismatches": [],
+  "compiledMismatches": [],
+  "iconAudit": "passed",
+  "appJsSha256": "a0c2490cca4c3ba2e8963e20b0ae91265324b68fde3b67830e493763e80460a8",
+  "sourceSha256": {
+    "apps/apple/ios/App/App/SceneDelegate.swift": "bafcdb37aa761d80878beb83f9dc0eaa2a8f6d41031e9fe73b57c90d173b1982",
+    "apps/web/components/number-generator.tsx": "ad97c793ab037aa2dbcb15f0774d3377f2cd2b0184d972a6316b2ce92d5023b6",
+    "apps/web/lib/local-product-repository.ts": "1e3f2da79ac7d2be1a6999841f9b0d95f2109ba844123cbf1c27039e60ba7938",
+    "packages/domain/src/number-practice.ts": "6f0db6014605187521498dffd2777185c465acad4b7313c0fed5712862493f80"
+  },
+  "uploaded": false
+}

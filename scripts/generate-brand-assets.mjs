@@ -14,6 +14,9 @@ const repositoryRoot = path.resolve(
 );
 const sourcePath = path.join(repositoryRoot, "Ressourcen", "Flash-n-Flip.svg");
 const checkOnly = process.argv.includes("--check");
+const appleIconDirectory =
+  "apps/apple/ios/App/App/Assets.xcassets/AppIcon.appiconset";
+const obsoleteAssets = [`${appleIconDirectory}/AppIcon-512@2x.png`];
 
 const forbiddenMarkup = [
   /<!ENTITY/i,
@@ -251,9 +254,44 @@ async function adaptiveIconFromSvg(svg) {
     .toBuffer();
 }
 
+export function createAppleAppIconCatalog() {
+  const groups = [
+    ["iphone", [20, 29, 40, 60], [2, 3]],
+    ["ipad", [20, 29, 40, 76], [1, 2]],
+    ["ipad", [83.5], [2]],
+    ["ios-marketing", [1024], [1]],
+  ];
+  return {
+    images: groups.flatMap(([idiom, sizes, scales]) =>
+      sizes.flatMap((size) =>
+        scales.map((scale) => ({
+          idiom,
+          size: `${size}x${size}`,
+          scale: `${scale}x`,
+          filename: `AppIcon-${size * scale}.png`,
+        })),
+      ),
+    ),
+    info: { author: "xcode", version: 1 },
+  };
+}
+
 async function createOutputs(svg) {
   const colors = extractBrandColors(svg);
   const icon1024 = await pngFromSvg(svg, 1024, colors.yellow);
+  const appleIcons = createAppleAppIconCatalog();
+  const appleIconPixels = new Map(
+    appleIcons.images.map((image) => [
+      image.filename,
+      Number.parseFloat(image.size) * Number.parseInt(image.scale, 10),
+    ]),
+  );
+  const appleIconOutputs = await Promise.all(
+    [...appleIconPixels].map(async ([fileName, pixels]) => [
+      `${appleIconDirectory}/${fileName}`,
+      pixels === 1024 ? icon1024 : await pngFromSvg(svg, pixels, colors.yellow),
+    ]),
+  );
   const splashLogo1x = await pngFromSvg(svg, 240, colors.yellow);
   const splashLogo2x = await pngFromSvg(svg, 480, colors.yellow);
   const splashLogo3x = await pngFromSvg(svg, 720, colors.yellow);
@@ -313,9 +351,10 @@ async function createOutputs(svg) {
     ["apps/admin/public/icons/icon-192.png", icon192],
     ["apps/admin/public/icons/icon-512.png", icon512],
     ["apps/admin/public/icons/brand-assets.json", metadata],
+    ...appleIconOutputs,
     [
-      "apps/apple/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
-      icon1024,
+      `${appleIconDirectory}/Contents.json`,
+      Buffer.from(`${JSON.stringify(appleIcons, null, 2)}\n`),
     ],
     [
       "apps/apple/ios/App/App/Assets.xcassets/OverviewTab.imageset/OverviewTab.svg",
@@ -350,6 +389,13 @@ async function main() {
   const formatted = await prettier.format(sanitized, { parser: "html" });
   const outputs = await createOutputs(formatted);
   const mismatches = [];
+
+  for (const relativePath of obsoleteAssets) {
+    const target = path.join(repositoryRoot, relativePath);
+    if (!fs.existsSync(target)) continue;
+    mismatches.push(relativePath);
+    if (!checkOnly) fs.unlinkSync(target);
+  }
 
   for (const [relativePath, content] of outputs) {
     const target = path.join(repositoryRoot, relativePath);

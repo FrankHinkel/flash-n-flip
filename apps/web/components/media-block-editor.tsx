@@ -228,7 +228,9 @@ export function MediaBlockEditor({
           ? {
               type: "image",
               mediaId: id,
-              referenceName: replacement?.referenceName,
+              ...(replacement?.referenceName
+                ? { referenceName: replacement.referenceName }
+                : {}),
               alt:
                 replacement?.type === "image"
                   ? replacement.alt ||
@@ -242,15 +244,16 @@ export function MediaBlockEditor({
           : {
               type: "audio",
               mediaId: id,
-              referenceName: replacement?.referenceName,
+              ...(replacement?.referenceName
+                ? { referenceName: replacement.referenceName }
+                : {}),
               label:
                 replacement?.type === "audio"
                   ? replacement.label
                   : validated.fileName,
-              transcript:
-                replacement?.type === "audio"
-                  ? replacement.transcript
-                  : undefined,
+              ...(replacement?.type === "audio" && replacement.transcript
+                ? { transcript: replacement.transcript }
+                : {}),
             };
       onChange(
         replacement
@@ -676,15 +679,19 @@ export function MediaBlockEditor({
                             rows={3}
                             maxLength={5_000}
                             value={block.transcript ?? ""}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              // Empty optional fields must be absent in the
+                              // durable JSON payload, not present as undefined.
+                              const { transcript: _transcript, ...audio } =
+                                block;
+                              const transcript = event.currentTarget.value;
                               onChange(
                                 replaceBlock(value, block, {
-                                  ...block,
-                                  transcript:
-                                    event.currentTarget.value || undefined,
+                                  ...audio,
+                                  ...(transcript ? { transcript } : {}),
                                 }),
-                              )
-                            }
+                              );
+                            }}
                           />
                         </label>
                         {durationByMedia[block.mediaId] ? (

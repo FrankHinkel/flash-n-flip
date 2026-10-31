@@ -303,6 +303,16 @@ private final class FlashNFlipWeakScriptMessageHandler: NSObject, WKScriptMessag
     }
 }
 
+private final class FlashNFlipWebView: WKWebView {
+    // Suppress WebKit's iPad form toolbar on Mac through UIResponder's public
+    // accessory hook. Leave the actual keyboard/input view untouched: replacing
+    // it breaks UIKit's Mac input-assistant layout after selection and copying.
+    // Text selection, hardware typing and iPhone/iPad accessories stay intact.
+    override var inputAccessoryView: UIView? {
+        ProcessInfo.processInfo.isiOSAppOnMac ? nil : super.inputAccessoryView
+    }
+}
+
 private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private static let textEntryMessageName = "flashNFlipTextEntry"
     // Adapted from Pianoforte's WebKit input-overlay fix (d60bc30 / 202ed1c).
@@ -320,24 +330,33 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
       ].join(',');
       let scheduled = false;
       let previous;
+      let previousFocused;
+      const editable = element => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return !element.matches(':disabled, [readonly]') &&
+          !element.closest('[inert], [aria-hidden="true"]') &&
+          rect.width > 0 && rect.height > 0 &&
+          style.display !== 'none' && style.visibility !== 'hidden';
+      };
+      window.__flashNFlipHasFocusedTextEntry = () => {
+        const active = document.activeElement;
+        return Boolean(active?.matches(selector) && editable(active));
+      };
       const sync = () => {
-        scheduled = false;
-        const enabled = Array.from(document.querySelectorAll(selector)).some(element => {
-          const rect = element.getBoundingClientRect();
-          const style = getComputedStyle(element);
-          return !element.matches(':disabled, [readonly]') &&
-            !element.closest('[inert], [aria-hidden="true"]') &&
-            rect.width > 0 && rect.height > 0 &&
-            style.display !== 'none' && style.visibility !== 'hidden';
-        });
-        if (enabled === previous) return;
+        const enabled = Array.from(document.querySelectorAll(selector)).some(editable);
+        const focused = window.__flashNFlipHasFocusedTextEntry();
+        const mac = document.documentElement?.dataset.appleInterfacePlatform === 'mac';
+        if (enabled === previous && (!mac || focused === previousFocused)) return;
         previous = enabled;
+        previousFocused = focused;
         window.webkit?.messageHandlers?.flashNFlipTextEntry?.postMessage(enabled);
       };
       const scheduleSync = () => {
         if (scheduled) return;
         scheduled = true;
-        requestAnimationFrame(sync);
+        requestAnimationFrame(() => { scheduled = false; sync(); });
       };
       window.__flashNFlipSyncTextEntry = scheduleSync;
       const observer = new MutationObserver(scheduleSync);
@@ -346,8 +365,14 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
         attributeFilter: ['class', 'style', 'hidden', 'disabled', 'readonly',
           'contenteditable', 'type', 'inert', 'aria-hidden', 'open']
       });
-      for (const eventName of ['click', 'focusin', 'focusout', 'transitionend']) {
+      for (const eventName of ['click', 'transitionend']) {
         document.addEventListener(eventName, scheduleSync, true);
+      }
+      for (const eventName of ['focusin', 'focusout']) {
+        document.addEventListener(eventName, () => {
+          if (document.documentElement?.dataset.appleInterfacePlatform === 'mac') sync();
+          else scheduleSync();
+        }, true);
       }
       window.addEventListener('resize', scheduleSync);
       scheduleSync();
@@ -356,21 +381,38 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
 
     private var textEntryMessageHandler: FlashNFlipWeakScriptMessageHandler?
     private var textEntryEnabled: Bool?
+    private var textEntryGeneration = 0
+    private var macKeyboardCleanupPending = false
 
     let launchPlugin = FlashNFlipLaunchPlugin()
     let navigationPlugin = FlashNFlipNavigationPlugin()
     let typographyPlugin = FlashNFlipTypographyPlugin()
     var nativeTabBarEnabled = false
 
+    override func instanceDescriptor() -> InstanceDescriptor {
+        let descriptor = super.instanceDescriptor()
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            // CAPBridgeViewController otherwise focuses WebKit again in
+            // viewDidAppear, after the read-only text-entry policy ran.
+            descriptor.hasInitialFocus = false
+        }
+        return descriptor
+    }
+
+    override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
+        FlashNFlipWebView(frame: frame, configuration: configuration)
+    }
+
     override var canBecomeFirstResponder: Bool {
         ProcessInfo.processInfo.isiOSAppOnMac || super.canBecomeFirstResponder
     }
 
     override var keyCommands: [UIKeyCommand]? {
-        guard ProcessInfo.processInfo.isiOSAppOnMac, textEntryEnabled != true else {
+        guard ProcessInfo.processInfo.isiOSAppOnMac, isFirstResponder,
+              presentedViewController == nil, parent?.presentedViewController == nil else {
             return super.keyCommands
         }
-        return [
+        let navigationCommands = [
             " ", "\r", UIKeyCommand.inputEscape,
             UIKeyCommand.inputLeftArrow, UIKeyCommand.inputRightArrow,
             UIKeyCommand.inputUpArrow, UIKeyCommand.inputDownArrow,
@@ -381,6 +423,9 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
             command.wantsPriorityOverSystemBehavior = true
             return command
         }
+        let copy = UIKeyCommand(input: "c", modifierFlags: .command, action: #selector(copyMacSelection(_:)))
+        copy.wantsPriorityOverSystemBehavior = true
+        return navigationCommands + [copy]
     }
 
     private let webSurfaceColor = UIColor(
@@ -474,15 +519,28 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == Self.textEntryMessageName, message.frameInfo.isMainFrame,
-              let enabled = message.body as? Bool, textEntryEnabled != enabled,
+              let enabled = message.body as? Bool,
               let webView = bridge?.webView
         else { return }
+        let visibilityChanged = textEntryEnabled != enabled
         textEntryEnabled = enabled
+        textEntryGeneration &+= 1
         // Mac learners must be able to select and copy read-only card text even
         // when no input is visible. Keep the touch input-overlay policy intact.
-        webView.configuration.preferences.isTextInteractionEnabled =
-            ProcessInfo.processInfo.isiOSAppOnMac || enabled
-        guard !enabled else { return }
+        if visibilityChanged {
+            webView.configuration.preferences.isTextInteractionEnabled =
+                ProcessInfo.processInfo.isiOSAppOnMac || enabled
+        }
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            if visibilityChanged && !enabled {
+                webView.endEditing(true)
+                becomeFirstResponder()
+            } else {
+                requestMacKeyboardCleanup()
+            }
+            return
+        }
+        guard visibilityChanged, !enabled else { return }
 
         // Disabling the preference alone leaves an existing WKContentView input
         // session alive. End it when the last form closes, as in Pianoforte.
@@ -509,10 +567,68 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
         ))
         textEntryMessageHandler = handler
         webView.evaluateJavaScript(Self.textEntryBridgeScript, completionHandler: nil)
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(macKeyboardDidShow(_:)),
+                name: UIResponder.keyboardDidShowNotification, object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(macKeyboardDidShow(_:)),
+                name: UIResponder.keyboardDidChangeFrameNotification, object: nil
+            )
+        }
+    }
+
+    @objc private func macKeyboardDidShow(_ notification: Notification) {
+        requestMacKeyboardCleanup()
+    }
+
+    private func containsFirstResponder(_ view: UIView) -> Bool {
+        view.isFirstResponder || view.subviews.contains(where: containsFirstResponder)
+    }
+
+    private func requestMacKeyboardCleanup() {
+        guard ProcessInfo.processInfo.isiOSAppOnMac,
+              !isFirstResponder, !macKeyboardCleanupPending,
+              view.window?.isKeyWindow == true,
+              presentedViewController == nil, parent?.presentedViewController == nil,
+              let webView = bridge?.webView, containsFirstResponder(webView) else { return }
+        // Selection and graph focus can reopen a UIKit input session without
+        // changing the page's form visibility. Recheck DOM focus after UIKit's
+        // transition so a newly focused real editor is never dismissed.
+        macKeyboardCleanupPending = true
+        let generation = textEntryGeneration
+        webView.evaluateJavaScript("window.__flashNFlipHasFocusedTextEntry?.() ?? true") { [weak self, weak webView] result, _ in
+            guard let self else { return }
+            self.macKeyboardCleanupPending = false
+            guard generation == self.textEntryGeneration else {
+                self.requestMacKeyboardCleanup()
+                return
+            }
+            guard let webView, self.view.window?.isKeyWindow == true,
+                  self.presentedViewController == nil, self.parent?.presentedViewController == nil,
+                  self.containsFirstResponder(webView),
+                  let editing = result as? Bool, !editing else { return }
+            // Do not blur the DOM: the selected range must remain copyable.
+            webView.endEditing(true)
+            self.becomeFirstResponder()
+        }
+    }
+
+    @objc private func copyMacSelection(_ command: UIKeyCommand) {
+        guard ProcessInfo.processInfo.isiOSAppOnMac, isFirstResponder,
+              let webView = bridge?.webView else { return }
+        // The controller owns keyboard commands while the read-only WebView
+        // is out of UIKit's input session. Keep Cmd+C for its DOM selection.
+        webView.evaluateJavaScript("window.getSelection()?.toString() ?? ''") { [weak self] result, error in
+            guard self?.isFirstResponder == true, error == nil,
+                  let text = result as? String, !text.isEmpty else { return }
+            UIPasteboard.general.string = text
+        }
     }
 
     @objc private func handleMacKeyCommand(_ command: UIKeyCommand) {
-        guard ProcessInfo.processInfo.isiOSAppOnMac, textEntryEnabled == false,
+        guard ProcessInfo.processInfo.isiOSAppOnMac, isFirstResponder,
               let input = command.input, let webView = bridge?.webView
         else { return }
         let keys = [
@@ -551,6 +667,8 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
     }
 
     deinit {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardDidShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardDidChangeFrameNotification, object: nil)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: Self.textEntryMessageName)
     }
 }

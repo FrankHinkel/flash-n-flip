@@ -93,6 +93,39 @@ export function assertAppIdentity(info, state) {
   assert.equal(info.FNFDistributionChannel, channel);
   assert.equal(info.ITSAppUsesNonExemptEncryption, false);
 }
+export function assertAppIcons(info, assets, files) {
+  assert.ok(files.includes("Assets.car"), "Missing compiled app icon catalog");
+  for (const key of ["CFBundleIcons", "CFBundleIcons~ipad"]) {
+    const primary = info[key]?.CFBundlePrimaryIcon;
+    assert.equal(
+      primary?.CFBundleIconName,
+      "AppIcon",
+      `Missing ${key} AppIcon binding`,
+    );
+    assert.ok(primary.CFBundleIconFiles?.length, `Missing ${key} icon files`);
+    for (const name of primary.CFBundleIconFiles) {
+      assert.ok(/^AppIcon[\w.-]*$/.test(name));
+      assert.ok(
+        files.some(
+          (file) => file === `${name}.png` || file.startsWith(`${name}@`),
+        ),
+        `Missing compiled icon ${name}`,
+      );
+    }
+  }
+  assert.ok(
+    assets.some(
+      (asset) =>
+        asset.AssetType === "Icon Image" &&
+        asset.Name === "AppIcon" &&
+        asset.Idiom === "marketing" &&
+        asset.PixelWidth === 1024 &&
+        asset.PixelHeight === 1024 &&
+        asset.Opaque === true,
+    ),
+    "Missing opaque 1024x1024 App Store marketing icon",
+  );
+}
 export function assertDistributionEntitlements(entitlements, profile) {
   assert.notEqual(
     entitlements["get-task-allow"],
@@ -140,6 +173,16 @@ function appAt(directory) {
 function auditApp(app, state, distribution = false) {
   const info = plist(path.join(app, "Info.plist"));
   assertAppIdentity(info, state);
+  assertAppIcons(
+    info,
+    JSON.parse(
+      exec("/usr/bin/assetutil", [
+        "--info",
+        path.join(app, "Assets.car"),
+      ]).toString(),
+    ),
+    fs.readdirSync(app),
+  );
   exec("codesign", ["--verify", "--deep", "--strict", app]);
   const config = json(path.join(app, "capacitor.config.json"));
   assert.equal(

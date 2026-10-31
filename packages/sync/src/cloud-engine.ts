@@ -14,13 +14,29 @@ import { cloudCardContent } from "./cloud-library-projection.js";
 import type { LocalAuthorityByteHasher } from "./local-authority.js";
 
 // Sort JSON keys by code point, independent of the device's UI locale.
-export function hashEnginePayload(value: unknown, hasher: LocalAuthorityByteHasher): Promise<string> {
+export function hashEnginePayload(
+  value: unknown,
+  hasher: LocalAuthorityByteHasher,
+): Promise<string> {
   const canonical = (item: unknown): string => {
-    if (item === null || typeof item === "string" || typeof item === "boolean") return JSON.stringify(item);
-    if (typeof item === "number" && Number.isFinite(item)) return JSON.stringify(item);
+    if (item === null || typeof item === "string" || typeof item === "boolean")
+      return JSON.stringify(item);
+    if (typeof item === "number" && Number.isFinite(item))
+      return JSON.stringify(item);
     if (Array.isArray(item)) return `[${item.map(canonical).join(",")}]`;
-    if (item && typeof item === "object" && (Object.getPrototypeOf(item) === Object.prototype || Object.getPrototypeOf(item) === null)) {
-      return `{${Object.keys(item).sort().map(key => `${JSON.stringify(key)}:${canonical((item as Record<string,unknown>)[key])}`).join(",")}}`;
+    if (
+      item &&
+      typeof item === "object" &&
+      (Object.getPrototypeOf(item) === Object.prototype ||
+        Object.getPrototypeOf(item) === null)
+    ) {
+      return `{${Object.keys(item)
+        .sort()
+        .map(
+          (key) =>
+            `${JSON.stringify(key)}:${canonical((item as Record<string, unknown>)[key])}`,
+        )
+        .join(",")}}`;
     }
     throw new Error("Invalid canonical cloud value");
   };

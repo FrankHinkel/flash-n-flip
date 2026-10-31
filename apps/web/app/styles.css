@@ -11374,53 +11374,51 @@ button.periodic-table-element {
   }
 }
 
-.number-generator-page {
-  width: min(1080px, calc(100% - 40px));
+/* Number practice is a setup form; learning uses the regular study screen. */
+.number-setup-page {
+  width: min(640px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 42px 0 max(42px, var(--safe-area-bottom));
+  padding: 24px 0
+    calc(
+      var(--web-mobile-nav-height, 90px) + max(24px, var(--safe-area-bottom))
+    );
 }
 
-.number-generator-header {
-  max-width: 780px;
+.number-setup-page header h1 {
+  margin: 16px 0 8px;
+  font-size: var(--text-title, 30px);
 }
 
-.number-generator-header h1 {
-  margin: 6px 0 10px;
-  font: 700 clamp(30px, 5vw, 54px) var(--font-display);
-}
-
-.number-generator-header p,
-.number-generator-note {
+.number-setup-page header p,
+.number-setup-hint {
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
-.number-generator-controls {
-  margin: 24px 0 18px;
-  padding: 16px;
+.number-setup-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
-  align-items: end;
-  gap: 12px;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 18px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 18px;
 }
 
-.number-generator-controls label {
+.number-target-field {
   min-width: 0;
   display: grid;
-  gap: 7px;
-  font-size: var(--text-small, 13px);
-  font-weight: 800;
+  gap: 8px;
+  font-weight: 700;
 }
 
-.number-generator-controls select,
-.number-generator-controls input {
+.number-target-field select {
   width: 100%;
-  min-height: 46px;
-  padding: 10px 12px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -11428,168 +11426,69 @@ button.periodic-table-element {
   font: inherit;
 }
 
-.number-generator-controls :is(select, input):focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.number-language-swap {
-  width: 46px;
-  min-width: 46px;
-  padding-inline: 0;
-}
-
-.number-generator-card {
-  min-height: 330px;
-  padding: 16px;
+.number-setup-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  gap: 16px;
-  color: var(--ink);
-  background:
-    radial-gradient(circle at 10% 10%, var(--primary-soft), transparent 38%),
-    var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
+  gap: 8px;
+  border: 0;
 }
 
-.number-generator-install {
-  margin: 0 0 18px;
-  padding: 16px;
+.number-setup-form legend {
+  padding: 0 0 8px;
+  font-weight: 700;
+}
+
+.number-range-option,
+.number-all-option {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-}
-
-.number-generator-install > div {
-  min-width: min(100%, 300px);
-  flex: 1;
-  display: grid;
-  gap: 4px;
-}
-
-.number-generator-install > div span,
-.number-generator-install > p {
-  color: var(--muted);
-  font-size: var(--text-small, 13px);
-  line-height: 1.5;
-}
-
-.number-generator-install > p {
-  width: 100%;
-  margin: 0;
-}
-
-.number-generator-install .form-success {
-  color: #245f47;
-}
-
-.number-card-side {
-  min-width: 0;
-  padding: 18px;
-  display: grid;
-  place-content: center;
-  gap: 12px;
-  text-align: center;
+  min-height: 48px;
+  padding: 10px 12px;
   overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
-.number-card-side > span {
-  color: var(--muted);
-  font-size: var(--text-small, 13px);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.number-range-option {
+  border: 2px solid var(--border);
+  border-radius: 10px;
 }
 
-.number-card-side strong {
-  font: 750 clamp(28px, 5vw, 54px) var(--font-display);
+.number-range-option:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 
-.number-card-side p {
+.number-setup-form input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   margin: 0;
-  font-size: var(--text-title, clamp(21px, 3vw, 34px));
-  font-weight: 650;
-  line-height: 1.3;
+  accent-color: var(--primary);
 }
 
-.number-card-divider {
-  align-self: center;
-  color: var(--accent-text-strong);
-  font-size: var(--text-title, 32px);
-  font-weight: 800;
+.number-setup-form :is(select, input, button):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
 
-.number-card-answer:not(.revealed) {
-  min-height: 240px;
+.number-setup-form button:disabled {
+  opacity: 1;
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: none;
 }
 
-.number-generator-note {
-  margin: 14px 2px 0;
-  font-size: var(--text-small, 13px);
+.number-setup-hint,
+.number-setup-count {
+  margin: 0;
 }
 
-@media (max-width: 760px) {
-  body:has(.number-generator-page) .theme-toggle {
-    position: absolute;
-  }
-
-  .number-generator-page {
-    width: min(100% - 24px, 680px);
-    padding-top: 24px;
-  }
-
-  .number-generator-header {
-    padding-right: 58px;
-  }
-
-  .number-generator-controls {
-    grid-template-columns: minmax(0, 1fr) 46px;
-  }
-
-  .number-generator-controls > label:not(.number-value-field) {
-    grid-column: 1 / -1;
-  }
-
-  .number-language-swap {
-    grid-column: 2;
-    justify-self: end;
-    transform: rotate(90deg);
-  }
-
-  .number-value-field {
-    grid-column: 1 / -1;
-  }
-
-  .number-generator-controls > .button:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .number-generator-card {
-    min-height: 480px;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(150px, 1fr) auto minmax(150px, 1fr);
-  }
-
-  .number-generator-install > .button {
-    width: 100%;
-  }
-
-  .number-card-divider {
-    justify-self: center;
-    transform: rotate(90deg);
-  }
-
-  .number-card-answer:not(.revealed) {
-    min-height: 150px;
-  }
+.number-setup-count {
+  font-weight: 700;
 }
 
 /* The iPad app running on macOS uses the Web sidebar rather than the native tab bar.
@@ -12458,4 +12357,347 @@ button.periodic-table-element {
 .deck-editor-summary .app-header h1 {
   font-size: calc(var(--text-body, 16px) * 1.6);
   line-height: 1.15;
+}
+
+/* Discover: a quiet category entry, then one offer at a time. */
+.discover-catalog {
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  overflow-wrap: anywhere;
+}
+.discover-heading {
+  margin-bottom: 24px;
+}
+.discover-heading h1 {
+  margin: 12px 0;
+  font-size: clamp(1.55rem, 4vw, 2.1rem);
+  line-height: 1.2;
+}
+.discover-heading h1:focus {
+  outline: none;
+}
+.discover-heading p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.discover-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.discover-search {
+  margin: 0 0 22px;
+}
+.discover-search label,
+.discover-language label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.discover-search-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.discover-search-control input {
+  min-width: 0;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  box-shadow: none;
+}
+.discover-search-control:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.discover-search-control input:focus-visible {
+  outline: none;
+}
+.discover-search-control input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.discover-language {
+  max-width: 350px;
+  margin-bottom: 18px;
+}
+.discover-language select {
+  min-height: 48px;
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.discover-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.discover-category {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 120px;
+  padding: 22px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.discover-category > svg {
+  flex: 0 0 auto;
+}
+.discover-category > svg:last-child {
+  margin-left: auto;
+}
+.discover-category > span {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.discover-category strong {
+  font-size: 1.16rem;
+  line-height: 1.3;
+}
+.discover-category span span {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.discover-offers {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.discover-offer {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.discover-offer-copy {
+  min-width: 0;
+  flex: 1;
+}
+.discover-offer h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+.discover-offer p {
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+.discover-meta,
+.discover-result-count {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.discover-installed {
+  display: block;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.discover-offer .button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  gap: 6px;
+}
+.discover-detail {
+  display: grid;
+  gap: 22px;
+}
+.discover-detail-summary,
+.discover-preview,
+.discover-included-decks {
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  min-width: 0;
+}
+.discover-detail h2 {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+}
+.discover-detail p {
+  line-height: 1.5;
+}
+.discover-detail-summary > p {
+  margin: 0 0 12px;
+}
+.discover-detail-actions,
+.discover-success {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.discover-detail-actions .button,
+.discover-success .button {
+  min-height: 44px;
+}
+.discover-success {
+  margin-bottom: 20px;
+}
+.discover-success p {
+  width: 100%;
+  margin: 0;
+}
+.discover-include {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.discover-include input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+}
+.discover-preview > p {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+.discover-preview-position {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.discover-preview-content {
+  padding: 16px;
+  min-height: 180px;
+  max-height: min(480px, 55dvh);
+  overflow: auto;
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+}
+.discover-preview-content > :first-child {
+  margin-top: 0;
+}
+.discover-preview-content img,
+.discover-preview-content svg {
+  max-width: 100%;
+}
+.discover-preview-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.discover-preview-controls .button {
+  min-width: 44px;
+  min-height: 44px;
+  white-space: normal;
+}
+.discover-preview-controls .button:disabled {
+  opacity: 1;
+  color: var(--muted);
+  background: var(--paper);
+  cursor: default;
+}
+.discover-included-decks summary {
+  min-height: 44px;
+  padding-block: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.discover-included-decks ul {
+  line-height: 1.6;
+  padding-left: 24px;
+}
+@media (hover: hover) {
+  .discover-category:hover {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+  }
+}
+@media (max-width: 620px) {
+  .discover-categories {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .discover-category {
+    min-height: 100px;
+    padding: 18px 16px;
+    gap: 12px;
+  }
+  .discover-offer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+  .discover-offer .button {
+    align-self: flex-start;
+  }
+  .discover-detail-summary,
+  .discover-preview,
+  .discover-included-decks {
+    padding: 16px;
+  }
+  .discover-preview-content {
+    padding: 12px;
+  }
+  .discover-preview-controls {
+    gap: 8px;
+  }
+  .discover-preview-controls > .discover-preview-answer {
+    flex: 1;
+  }
+}
+
+.discover-feedback {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.discover-feedback > p {
+  margin-top: 0;
+  line-height: 1.5;
+}
+.discover-catalog .button {
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+}
+.discover-catalog .button-primary {
+  color: #fff;
+}
+.discover-feedback.form-error {
+  color: var(--ink);
+  font-size: inherit;
 }

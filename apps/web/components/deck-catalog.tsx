@@ -1,1047 +1,689 @@
 "use client";
 
 import {
-  Atom,
-  ChartNoAxesCombined,
+  ArrowLeft,
+  ChevronLeft,
   ChevronRight,
-  CircleCheck,
-  Download,
-  Hash,
-  LibraryBig,
-  RefreshCw,
-  ShieldCheck,
-  Shapes,
+  Code2,
+  FlaskConical,
+  Globe2,
+  Languages,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-
-import type {
-  ConjugationTemplate,
-  CoreLanguageTemplate,
-  CuratedReleaseStatus,
-  DeveloperReferenceLibraryTemplate,
-  GeographyTemplate,
-  IrregularVerbTemplate,
-  NumberCollectionTemplate,
-  PeriodicTableLearningTemplate,
-  StatisticsIntroductionTemplate,
-} from "@flashcards/api-client";
-import type { UiMessageKey } from "@flashcards/i18n";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  hasCardContent,
+  resolveLocalizedCardContent,
+} from "@flashcards/domain/content";
+import type { CuratedCatalog } from "@flashcards/domain/curated-catalog";
 
 import {
   installLocalCuratedCollection,
   installLocalGeography,
-  type LocalFnfHelpTemplate,
+  loadLocalCuratedCatalog,
   localCuratedInstallError,
   localCuratedTemplates,
 } from "../lib/local-curated-catalog";
+import { ContentView } from "./content-view";
 import { createSerialInstallQueue } from "./deck-catalog-install-queue";
-import { createInitialExpandedContinents } from "./deck-catalog-state";
-import { DeckVisual } from "./deck-visual";
+import {
+  buildDiscoverOffers,
+  categoryMessage,
+  descendantOffers,
+  discoverCategories,
+  discoverHref,
+  discoverLanguageCodes,
+  discoverSamples,
+  filterDiscoverOffers,
+  type CatalogTemplates,
+  type DiscoverCategory,
+  type DiscoverOffer,
+} from "./discover-catalog-model";
 import { useI18n } from "./i18n-provider";
-import type { I18nText } from "./i18n-provider";
-import { referenceHrefForDeck } from "./study-navigation";
+import { resolveQuestionLocale } from "./study-content";
+import { studyPlanSelectionHref } from "./study-plan-navigation";
+import { referenceHrefForDeck, studyHrefForDeck } from "./study-navigation";
 
-const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
-  const language = locale.split("-")[0];
-  return language === "de" || language === "es" || language === "fr"
-    ? language
-    : "en";
+const categoryIcons = {
+  languages: Languages,
+  geography: Globe2,
+  science: FlaskConical,
+  programming: Code2,
 };
 
-const CatalogRelease = ({
-  release,
-  locale,
-  text,
+function OfferPreview({
+  offer,
+  previewLocale,
 }: {
-  release: CuratedReleaseStatus;
-  locale: string;
-  text: I18nText;
-}) => {
-  const statusKey =
-    release.status === "CURRENT"
-      ? "catalog.release.upToDate"
-      : release.status === "UNKNOWN"
-        ? "catalog.release.versionUnknown"
-        : release.status === "UPDATE_AVAILABLE"
-          ? "catalog.release.updateAvailable"
-          : null;
-  return (
-    <span
-      className={`catalog-release catalog-release-${release.status.toLowerCase()}`}
-    >
-      {statusKey ? (
-        <strong>
-          {release.status === "CURRENT" ? (
-            <CircleCheck size={14} aria-hidden="true" />
-          ) : null}
-          {text(statusKey)}
-        </strong>
-      ) : null}
-    </span>
-  );
-};
-
-export function DeckCatalog() {
+  offer: DiscoverOffer;
+  previewLocale: string;
+}) {
   const { locale, text } = useI18n();
-  const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
-  const [conjugationTemplate, setConjugationTemplate] =
-    useState<ConjugationTemplate | null>(null);
-  const [irregularVerbTemplate, setIrregularVerbTemplate] =
-    useState<IrregularVerbTemplate | null>(null);
-  const [coreLanguageTemplate, setCoreLanguageTemplate] =
-    useState<CoreLanguageTemplate | null>(null);
-  const [statisticsTemplate, setStatisticsTemplate] =
-    useState<StatisticsIntroductionTemplate | null>(null);
-  const [periodicTableTemplate, setPeriodicTableTemplate] =
-    useState<PeriodicTableLearningTemplate | null>(null);
-  const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
-    useState<DeveloperReferenceLibraryTemplate | null>(null);
-  const [fnfHelpTemplate, setFnfHelpTemplate] =
-    useState<LocalFnfHelpTemplate | null>(null);
-  const [numberTemplate, setNumberTemplate] =
-    useState<NumberCollectionTemplate | null>(null);
-  const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
-    createInitialExpandedContinents,
+  const samples = useMemo(() => {
+    const preferred =
+      offer.category === "languages"
+        ? offer.decks.filter((deck) =>
+            deck.contentLocales.includes(previewLocale),
+          )
+        : offer.decks;
+    return discoverSamples(
+      preferred.some((deck) => deck.cards.length) ? preferred : offer.decks,
+      offer.category === "help",
+    );
+  }, [offer.decks, offer.category, previewLocale]);
+  const [index, setIndex] = useState(0);
+  const [answer, setAnswer] = useState(false);
+  const sample = samples[index];
+  if (!sample) return null;
+  const content = resolveLocalizedCardContent(
+    sample.card,
+    previewLocale,
+    sample.deck.defaultContentLocale,
   );
+  const questionLocale =
+    offer.id === "core-languages"
+      ? resolveQuestionLocale(
+          "random",
+          content.locale,
+          sample.deck.contentLocales,
+          0,
+        )
+      : content.locale;
+  const question = resolveLocalizedCardContent(
+    sample.card,
+    questionLocale,
+    sample.deck.defaultContentLocale,
+  );
+  const reference = Boolean(
+    offer.reference ||
+    sample.card.usage === "REFERENCE" ||
+    sample.card.kind === "EXPLANATION",
+  );
+  const referenceContent = hasCardContent(content.back)
+    ? content.back
+    : content.front;
+  return (
+    <section
+      className="discover-preview"
+      aria-labelledby="discover-preview-title"
+    >
+      <h2 id="discover-preview-title">{text("discover.sample")}</h2>
+      <p>{text("discover.sampleHint")}</p>
+      <div className="discover-preview-position" aria-live="polite">
+        {text("discover.samplePosition", [index + 1, samples.length])}
+      </div>
+      {questionLocale !== content.locale ? (
+        <p className="discover-meta">
+          {new Intl.DisplayNames([locale], { type: "language" }).of(
+            questionLocale,
+          )}{" "}
+          →{" "}
+          {new Intl.DisplayNames([locale], { type: "language" }).of(
+            content.locale,
+          )}
+        </p>
+      ) : null}
+      <div
+        className="discover-preview-content"
+        tabIndex={0}
+        role="region"
+        aria-label={text("discover.samplePosition", [
+          index + 1,
+          samples.length,
+        ])}
+      >
+        <ContentView
+          content={
+            reference
+              ? referenceContent
+              : answer
+                ? content.back
+                : question.front
+          }
+          locale={locale}
+          answer={reference || answer}
+        />
+      </div>
+      <div className="discover-preview-controls">
+        <button
+          type="button"
+          className="button button-quiet"
+          disabled={index === 0}
+          aria-label={text("discover.previous")}
+          onClick={() => {
+            setIndex(index - 1);
+            setAnswer(false);
+          }}
+        >
+          <ChevronLeft size={20} aria-hidden="true" />
+        </button>
+        {!reference && hasCardContent(content.back) ? (
+          <button
+            type="button"
+            className="button button-quiet discover-preview-answer"
+            aria-pressed={answer}
+            onClick={() => setAnswer(!answer)}
+          >
+            {text(answer ? "discover.hideAnswer" : "discover.showAnswer")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="button button-quiet"
+          disabled={index === samples.length - 1}
+          aria-label={text("discover.next")}
+          onClick={() => {
+            setIndex(index + 1);
+            setAnswer(false);
+          }}
+        >
+          <ChevronRight size={20} aria-hidden="true" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export function DeckCatalog({
+  helpReferences = false,
+}: {
+  helpReferences?: boolean;
+}) {
+  const { locale, text } = useI18n();
+  const params = useSearchParams();
+  const router = useRouter();
+  const requestedCategory = params.get("category");
+  const category = discoverCategories.includes(
+    requestedCategory as DiscoverCategory,
+  )
+    ? (requestedCategory as DiscoverCategory)
+    : null;
+  const offerId = helpReferences ? "fnf-help-library" : params.get("offer");
+  const urlQuery = params.get("q") ?? "";
+  const [query, setQuery] = useState(urlQuery);
+  const language =
+    category === "languages" &&
+    discoverLanguageCodes.includes(params.get("language") ?? "")
+      ? params.get("language")!
+      : "";
+  const [data, setData] = useState<{
+    catalog: CuratedCatalog;
+    templates: CatalogTemplates;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [installError, setInstallError] = useState("");
+  const [notice, setNotice] = useState<{
+    title: string;
+    deckId: string;
+    reference: boolean;
+  } | null>(null);
+  const [installed, setInstalled] = useState<Record<string, string>>({});
   const [installing, setInstalling] = useState<Set<string>>(() => new Set());
-  const pendingInstallIds = useRef(new Set<string>());
-  const installQueue = useRef(createSerialInstallQueue());
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [includeChildren, setIncludeChildren] = useState(false);
+  const pending = useRef(new Set<string>());
+  const queue = useRef(createSerialInstallQueue());
+  const active = useRef(false);
+  const revision = useRef(0);
+  const heading = useRef<HTMLHeadingElement>(null);
 
-  async function reload() {
+  const reload = useCallback(async () => {
+    const request = ++revision.current;
     try {
-      const result = await localCuratedTemplates();
-      setTemplates(result.geography);
-      setConjugationTemplate(result.conjugations);
-      setIrregularVerbTemplate(result.irregularVerbs);
-      setCoreLanguageTemplate(result.coreLanguages);
-      setStatisticsTemplate(result.statisticsIntroduction);
-      setPeriodicTableTemplate(result.periodicTableLearning);
-      setDeveloperLibraryTemplate(result.developerReference);
-      setFnfHelpTemplate(result.fnfHelp);
-      setNumberTemplate(result.numberTemplate);
-      setError("");
+      const [catalog, templates] = await Promise.all([
+        loadLocalCuratedCatalog(),
+        localCuratedTemplates(),
+      ]);
+      if (active.current && request === revision.current) {
+        setData({ catalog, templates });
+        setLoadFailed(false);
+        setLoading(false);
+      }
     } catch {
-      setError(text("legacy.29628b1c940f"));
+      if (active.current && request === revision.current) {
+        setLoadFailed(true);
+        setLoading(false);
+      }
     }
-  }
-
-  useEffect(() => {
-    void reload();
   }, []);
+  useEffect(() => {
+    active.current = true;
+    void reload();
+    return () => {
+      active.current = false;
+      revision.current += 1;
+    };
+  }, [reload]);
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+  useEffect(() => {
+    setIncludeChildren(false);
+    setInstallError("");
+    setNotice(null);
+    heading.current?.focus({ preventScroll: true });
+  }, [category, offerId, helpReferences]);
 
-  const isInstalling = (id: string) => installing.has(id);
+  const offers = useMemo(
+    () =>
+      data
+        ? buildDiscoverOffers(data.catalog, data.templates, locale, text)
+        : [],
+    [data, locale, text],
+  );
+  const offer = offers.find(
+    (item) =>
+      item.id === offerId &&
+      (helpReferences ? item.category === "help" : item.category !== "help"),
+  );
+  const results = filterDiscoverOffers(offers, { category, query, language });
+  const descendants = offer?.geographyId
+    ? descendantOffers(offers, offer.id)
+    : [];
+  const scopeDecks = offer
+    ? [
+        ...offer.decks,
+        ...(includeChildren ? descendants.flatMap((child) => child.decks) : []),
+      ]
+    : [];
+  const cardCount = (decks: DiscoverOffer["decks"]) =>
+    decks.reduce((count, deck) => count + deck.cards.length, 0);
+  const languageNames = (locales: readonly string[]) => {
+    const names = new Intl.DisplayNames([locale], { type: "language" });
+    return locales.map((item) => names.of(item) ?? item).join(", ");
+  };
+  const href = (
+    next: {
+      category?: DiscoverCategory | null;
+      offer?: string | null;
+      language?: string;
+      query?: string;
+    } = {},
+  ) =>
+    discoverHref({ category, query, language, ...next, help: helpReferences });
+  const openHref = (item: DiscoverOffer, deckId: string) =>
+    item.reference ? referenceHrefForDeck(deckId) : studyHrefForDeck(deckId);
+  const installedId = offer
+    ? (installed[offer.id] ?? offer.installedDeckId)
+    : null;
+  const current =
+    offer && (Boolean(installed[offer.id]) || offer.status === "CURRENT");
+  const childrenNeedInstall =
+    includeChildren &&
+    descendants.some(
+      (child) => !child.installedDeckId || child.status !== "CURRENT",
+    );
 
-  async function queueInstall(
-    id: string,
-    operation: () => Promise<unknown>,
-    errorKey: UiMessageKey,
-  ) {
-    if (pendingInstallIds.current.has(id)) return;
-    pendingInstallIds.current.add(id);
-    setInstalling(new Set(pendingInstallIds.current));
-    setError("");
-    await installQueue.current.enqueue(async () => {
+  async function install(item: DiscoverOffer) {
+    if (pending.current.has(item.id)) return;
+    const withChildren = includeChildren;
+    pending.current.add(item.id);
+    setInstalling(new Set(pending.current));
+    setInstallError("");
+    setNotice(null);
+    await queue.current.enqueue(async () => {
       try {
-        await operation();
-        await reload();
-        setNotice(text("ui.deckReady"));
+        const result = item.geographyId
+          ? await installLocalGeography(item.geographyId, withChildren)
+          : await installLocalCuratedCollection(item.id);
+        const deckId = result.idsByKey.get(item.rootKey);
+        if (active.current) {
+          if (deckId) {
+            setInstalled((previous) => ({ ...previous, [item.id]: deckId }));
+            setNotice({
+              title: item.title,
+              deckId,
+              reference: Boolean(item.reference),
+            });
+          }
+          await reload();
+        }
       } catch (cause) {
-        setError(localCuratedInstallError(cause, text, errorKey));
+        if (active.current)
+          setInstallError(
+            localCuratedInstallError(cause, text, "discover.installError"),
+          );
       } finally {
-        pendingInstallIds.current.delete(id);
-        setInstalling(new Set(pendingInstallIds.current));
+        pending.current.delete(item.id);
+        if (active.current) setInstalling(new Set(pending.current));
       }
     });
   }
 
-  async function install(
-    templateId: GeographyTemplate["id"],
-    includeChildren: boolean,
-  ) {
-    await queueInstall(
-      includeChildren ? "world-all" : templateId,
-      () => installLocalGeography(templateId, includeChildren),
-      "catalog.installGeographyFailed",
-    );
-  }
-
-  async function installConjugationCollection() {
-    await queueInstall(
-      "conjugations",
-      () => installLocalCuratedCollection("conjugations"),
-      "catalog.installConjugationFailed",
-    );
-  }
-
-  async function installIrregularVerbCollection() {
-    await queueInstall(
-      "irregular-verbs",
-      () => installLocalCuratedCollection("irregular-verbs"),
-      "catalog.installIrregularVerbsFailed",
-    );
-  }
-
-  async function installCoreLanguageDeck() {
-    await queueInstall(
-      "core-languages",
-      () => installLocalCuratedCollection("core-languages"),
-      "catalog.installCoreLanguagesFailed",
-    );
-  }
-
-  async function installStatisticsIntroduction() {
-    await queueInstall(
-      "statistics-introduction",
-      () => installLocalCuratedCollection("statistics-introduction"),
-      "catalog.installStatisticsFailed",
-    );
-  }
-
-  async function installPeriodicTableLearning() {
-    await queueInstall(
-      "periodic-table-learning",
-      () => installLocalCuratedCollection("periodic-table-learning"),
-      "catalog.installPeriodicTableFailed",
-    );
-  }
-
-  async function installDeveloperReferenceLibrary() {
-    await queueInstall(
-      "developer-reference-library",
-      () => installLocalCuratedCollection("developer-reference-library"),
-      "catalog.installDeveloperReferenceFailed",
-    );
-  }
-
-  async function installFnfHelpLibrary() {
-    await queueInstall(
-      "fnf-help-library",
-      () => installLocalCuratedCollection("fnf-help-library"),
-      "catalog.installHelpFailed",
-    );
-  }
-
-  const world = templates.find((template) => template.id === "world");
-  const continents = templates.filter(
-    (template) => template.parentId === "world",
+  const renderOffer = (item: DiscoverOffer) => (
+    <li key={item.id} className="discover-offer">
+      <div className="discover-offer-copy">
+        <h2>{item.title}</h2>
+        <p>{item.description}</p>
+        <p className="discover-meta">
+          {item.generator
+            ? text("discover.generatorHint")
+            : `${languageNames(item.locales)} · ${text("discover.cards", [cardCount(item.decks)])}`}
+        </p>
+        {item.installedDeckId || installed[item.id] ? (
+          <span className="discover-installed">
+            {text("discover.installed")}
+            {item.status === "UPDATE_AVAILABLE"
+              ? ` · ${text("catalog.release.updateAvailable")}`
+              : ""}
+          </span>
+        ) : null}
+      </div>
+      <Link
+        className="button button-quiet"
+        href={
+          item.generator
+            ? `/community/numbers${language ? `?language=${encodeURIComponent(language)}` : ""}`
+            : href({ offer: item.id })
+        }
+        aria-label={`${text(item.generator ? "discover.configure" : "discover.view")}: ${item.title}`}
+      >
+        {text(item.generator ? "discover.configure" : "discover.view")}
+        <ChevronRight size={18} aria-hidden="true" />
+      </Link>
+    </li>
   );
-  const subregionsByContinent = useMemo(
-    () =>
-      new Map(
-        continents.map((continent) => [
-          continent.id,
-          templates.filter((template) => template.parentId === continent.id),
-        ]),
-      ),
-    [continents, templates],
-  );
-  const language = localeKey(locale);
-  const allInstalled =
-    templates.length > 0 &&
-    templates.every((template) => template.installedDeckId);
-  const allCurrent =
-    allInstalled &&
-    templates.every((template) => template.status === "CURRENT");
 
   return (
     <section
-      className="discover-collections"
+      className="discover-collections discover-catalog"
       aria-labelledby="discover-collections-title"
     >
-      <div className="result-heading">
-        <div>
-          <span className="eyebrow">{text("legacy.d4680deb5db0")}</span>
-          <h1 id="discover-collections-title">{text("legacy.0fa8228d0a16")}</h1>
-        </div>
-      </div>
+      <header className="discover-heading">
+        {offerId || category || helpReferences ? (
+          <Link
+            className="discover-back"
+            href={
+              helpReferences
+                ? "/app/help"
+                : offerId
+                  ? href({ offer: null })
+                  : discoverHref()
+            }
+          >
+            <ArrowLeft size={19} aria-hidden="true" />
+            {helpReferences
+              ? text("discover.helpBack")
+              : offerId && category
+                ? text(categoryMessage(category))
+                : text(
+                    offerId && query.trim()
+                      ? "discover.backResults"
+                      : "discover.allCategories",
+                  )}
+          </Link>
+        ) : null}
+        <h1 id="discover-collections-title" tabIndex={-1} ref={heading}>
+          {offer?.title ??
+            (category
+              ? text(categoryMessage(category))
+              : text(
+                  helpReferences
+                    ? "discover.offer.fnf-help-library"
+                    : "discover.title",
+                ))}
+        </h1>
+        <p>
+          {offer?.description ??
+            (category
+              ? text(`discover.hint.${category}`)
+              : text("discover.intro"))}
+        </p>
+      </header>
 
-      {notice ? (
-        <div className="catalog-install-notice" role="status">
-          <p>{notice}</p>
-          <Link className="button button-primary" href="/app/decks">
-            {text("ui.myDecks")}
-          </Link>
-          <Link className="button button-quiet" href="/app/decks?selectPlan=1">
-            {text("ui.addToPlan")}
-          </Link>
+      {loadFailed ? (
+        <div className="discover-feedback form-error" role="alert">
+          <p>{text("discover.loadError")}</p>
+          <button
+            type="button"
+            className="button button-quiet"
+            onClick={() => {
+              setLoading(true);
+              void reload();
+            }}
+            disabled={loading}
+          >
+            {text("discover.retry")}
+          </button>
         </div>
       ) : null}
-
-      {statisticsTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="statistics-introduction-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div className="language-catalog-mark" aria-hidden="true">
-              <ChartNoAxesCombined size={34} strokeWidth={1.8} />
-            </div>
-            <div>
-              <span className="eyebrow">
-                {text("catalog.statistics.eyebrow")}
-              </span>
-              <h2 id="statistics-introduction-catalog-title">
-                {statisticsTemplate.title}
-              </h2>
-              <p>
-                {statisticsTemplate.description} ·{" "}
-                {text("catalog.statistics.cards", [
-                  statisticsTemplate.cardCount,
-                ])}
-              </p>
-              <CatalogRelease
-                release={statisticsTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {statisticsTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${statisticsTemplate.installedDeckId}`}
-                >
-                  {text("catalog.statistics.open")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("statistics-introduction") ||
-                    statisticsTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installStatisticsIntroduction()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("statistics-introduction")
-                        ? "spin"
-                        : undefined
-                    }
-                  />
-                  {isInstalling("statistics-introduction")
-                    ? text("catalog.statistics.installing")
-                    : statisticsTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.963c54856538")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("statistics-introduction")}
-                onClick={() => void installStatisticsIntroduction()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("statistics-introduction")
-                  ? text("catalog.statistics.installing")
-                  : text("catalog.statistics.install")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {periodicTableTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="periodic-table-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div className="language-catalog-mark" aria-hidden="true">
-              <Atom size={34} strokeWidth={1.8} />
-            </div>
-            <div>
-              <span className="eyebrow">
-                {text("catalog.periodicTable.eyebrow")}
-              </span>
-              <h2 id="periodic-table-catalog-title">
-                {periodicTableTemplate.title}
-              </h2>
-              <p>
-                {periodicTableTemplate.description} ·{" "}
-                {text("catalog.periodicTable.cards", [
-                  periodicTableTemplate.referenceCardCount,
-                  periodicTableTemplate.learningCardCount,
-                ])}
-              </p>
-              <CatalogRelease
-                release={periodicTableTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {periodicTableTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${periodicTableTemplate.installedDeckId}`}
-                >
-                  {text("catalog.periodicTable.open")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("periodic-table-learning") ||
-                    periodicTableTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installPeriodicTableLearning()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("periodic-table-learning")
-                        ? "spin"
-                        : undefined
-                    }
-                  />
-                  {isInstalling("periodic-table-learning")
-                    ? text("catalog.periodicTable.installing")
-                    : periodicTableTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.963c54856538")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("periodic-table-learning")}
-                onClick={() => void installPeriodicTableLearning()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("periodic-table-learning")
-                  ? text("catalog.periodicTable.installing")
-                  : text("catalog.periodicTable.install")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {conjugationTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="conjugation-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div
-              className="language-catalog-mark language-catalog-mark-multi"
-              aria-hidden="true"
-            >
-              4×
-            </div>
-            <div>
-              <span className="eyebrow">{text("legacy.79d5870cabb8")}</span>
-              <h2 id="conjugation-catalog-title">
-                {conjugationTemplate.title}
-              </h2>
-              <p>
-                {conjugationTemplate.description} ·{" "}
-                {conjugationTemplate.verbCount} {text("legacy.b429a9f9e4cb")} ·{" "}
-                {conjugationTemplate.cardCount} {text("legacy.69551da67e93")} ·{" "}
-                {conjugationTemplate.languages
-                  .map((language) => language.code)
-                  .join(" · ")}
-              </p>
-              <CatalogRelease
-                release={conjugationTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {conjugationTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${conjugationTemplate.installedDeckId}`}
-                >
-                  {text("legacy.44eb9ed33e47")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("conjugations") ||
-                    conjugationTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installConjugationCollection()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("conjugations") ? "spin" : undefined
-                    }
-                  />
-                  {isInstalling("conjugations")
-                    ? text("legacy.b715aecd60dd")
-                    : conjugationTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.963c54856538")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("conjugations")}
-                onClick={() => void installConjugationCollection()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("conjugations")
-                  ? text("legacy.4b9c0cb20372")
-                  : text("legacy.9baf7c41e329")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {irregularVerbTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="irregular-verb-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div
-              className="language-catalog-mark language-catalog-mark-multi"
-              aria-hidden="true"
-            >
-              4×
-            </div>
-            <div>
-              <span className="eyebrow">{text("legacy.79d5870cabb8")}</span>
-              <h2 id="irregular-verb-catalog-title">
-                {irregularVerbTemplate.title}
-              </h2>
-              <p>
-                {irregularVerbTemplate.description} ·{" "}
-                {irregularVerbTemplate.verbCount} {text("legacy.b429a9f9e4cb")}{" "}
-                · {irregularVerbTemplate.cardCount}{" "}
-                {text("legacy.69551da67e93")} ·{" "}
-                {irregularVerbTemplate.languages
-                  .map((language) => language.code)
-                  .join(" · ")}
-              </p>
-              <CatalogRelease
-                release={irregularVerbTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {irregularVerbTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${irregularVerbTemplate.installedDeckId}`}
-                >
-                  {text("legacy.44eb9ed33e47")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("irregular-verbs") ||
-                    irregularVerbTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installIrregularVerbCollection()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("irregular-verbs") ? "spin" : undefined
-                    }
-                  />
-                  {isInstalling("irregular-verbs")
-                    ? text("legacy.b715aecd60dd")
-                    : irregularVerbTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.963c54856538")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("irregular-verbs")}
-                onClick={() => void installIrregularVerbCollection()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("irregular-verbs")
-                  ? text("legacy.4b9c0cb20372")
-                  : text("legacy.9baf7c41e329")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {coreLanguageTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="core-language-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div
-              className="language-catalog-mark language-catalog-mark-multi"
-              aria-hidden="true"
-            >
-              4×
-            </div>
-            <div>
-              <span className="eyebrow">{text("legacy.79d5870cabb8")}</span>
-              <h2 id="core-language-catalog-title">
-                {coreLanguageTemplate.title}
-              </h2>
-              <p>
-                {coreLanguageTemplate.description} ·{" "}
-                {coreLanguageTemplate.conceptCount}{" "}
-                {text("legacy.478af837d491")} ·{" "}
-                {text("catalog.supportedLanguageCodes")}
-              </p>
-              <CatalogRelease
-                release={coreLanguageTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {coreLanguageTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${coreLanguageTemplate.installedDeckId}`}
-                >
-                  {text("legacy.44eb9ed33e47")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("core-languages") ||
-                    coreLanguageTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installCoreLanguageDeck()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("core-languages") ? "spin" : undefined
-                    }
-                  />
-                  {isInstalling("core-languages")
-                    ? text("legacy.b715aecd60dd")
-                    : coreLanguageTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.963c54856538")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("core-languages")}
-                onClick={() => void installCoreLanguageDeck()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("core-languages")
-                  ? text("legacy.4b9c0cb20372")
-                  : text("legacy.9baf7c41e329")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {world && (
-        <section
-          className="geography-catalog"
-          aria-labelledby="world-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <DeckVisual visual={world.visual} title={world.titles[language]} />
-            <div>
-              <span className="eyebrow">{text("legacy.91d96d072269")}</span>
-              <h2 id="world-catalog-title">{world.titles[language]}</h2>
-              <p>{world.descriptions[language]}</p>
-              <CatalogRelease release={world} locale={locale} text={text} />
-            </div>
-            <button
-              type="button"
-              className="button button-primary"
-              disabled={allCurrent || isInstalling("world-all")}
-              onClick={() => void install("world", true)}
-            >
-              <Download size={17} aria-hidden="true" />
-              {isInstalling("world-all")
-                ? text("legacy.33de3806a9fe")
-                : allCurrent
-                  ? text("catalog.release.upToDate")
-                  : allInstalled
-                    ? text("legacy.963c54856538")
-                    : text("legacy.731b01c4afd9")}
-            </button>
-          </div>
-          <div className="continent-downloads">
-            {continents.map((template) => {
-              const subregions = subregionsByContinent.get(template.id) ?? [];
-              const expanded = expandedContinents.has(template.id);
-              const templateContent = (
-                <>
-                  <DeckVisual
-                    visual={template.visual}
-                    title={template.titles[language]}
-                  />
-                  <strong>{template.titles[language]}</strong>
-                  <small>
-                    {template.installedDeckId ? null : (
-                      <Download size={14} aria-hidden="true" />
-                    )}{" "}
-                    {template.regionCount} {text("legacy.2190d3d74755")}
-                  </small>
-                  <CatalogRelease
-                    release={template}
-                    locale={locale}
-                    text={text}
-                  />
-                </>
-              );
-              return (
-                <div className="continent-download-group" key={template.id}>
-                  {template.installedDeckId ? (
-                    <Link
-                      href={`/app/learn?deckId=${template.installedDeckId}`}
-                      className="continent-download installed"
-                    >
-                      {templateContent}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className="continent-download"
-                      disabled={isInstalling(template.id)}
-                      onClick={() => void install(template.id, false)}
-                    >
-                      {templateContent}
-                    </button>
-                  )}
-                  {template.installedDeckId && template.status !== "CURRENT" ? (
-                    <button
-                      type="button"
-                      className="catalog-item-update"
-                      disabled={isInstalling(template.id)}
-                      onClick={() => void install(template.id, false)}
-                    >
-                      <RefreshCw
-                        size={14}
-                        aria-hidden="true"
-                        className={
-                          isInstalling(template.id) ? "spin" : undefined
-                        }
-                      />
-                      {text("catalog.release.updateAvailable")}
-                    </button>
-                  ) : null}
-                  {subregions.length ? (
-                    <button
-                      type="button"
-                      className="catalog-submenu-toggle"
-                      aria-expanded={expanded}
-                      onClick={() =>
-                        setExpandedContinents((current) => {
-                          const next = new Set(current);
-                          if (next.has(template.id)) next.delete(template.id);
-                          else next.add(template.id);
-                          return next;
-                        })
-                      }
-                    >
-                      <ChevronRight aria-hidden="true" />
-                      {text("legacy.c940c2a4836c")} ({subregions.length})
-                    </button>
-                  ) : null}
-                  {expanded ? (
-                    <div className="catalog-submenu">
-                      {subregions.map((subregion) =>
-                        subregion.installedDeckId ? (
-                          <div
-                            className="catalog-subregion-entry"
-                            key={subregion.id}
-                          >
-                            <Link
-                              href={`/app/learn?deckId=${subregion.installedDeckId}`}
-                              className="subregion-download installed"
-                            >
-                              <DeckVisual
-                                visual={subregion.visual}
-                                title={subregion.titles[language]}
-                              />
-                              <span>
-                                <strong>{subregion.titles[language]}</strong>
-                                <small>
-                                  {subregion.regionCount}{" "}
-                                  {text("legacy.2190d3d74755")} ·{" "}
-                                  {text("legacy.a468526ed5ef")}
-                                </small>
-                                <CatalogRelease
-                                  release={subregion}
-                                  locale={locale}
-                                  text={text}
-                                />
-                              </span>
-                            </Link>
-                            {subregion.status !== "CURRENT" ? (
-                              <button
-                                type="button"
-                                className="catalog-item-update"
-                                disabled={isInstalling(subregion.id)}
-                                onClick={() =>
-                                  void install(subregion.id, false)
-                                }
-                              >
-                                <RefreshCw size={14} aria-hidden="true" />
-                                {text("catalog.release.updateAvailable")}
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            key={subregion.id}
-                            className="subregion-download"
-                            disabled={isInstalling(subregion.id)}
-                            onClick={() => void install(subregion.id, false)}
-                          >
-                            <DeckVisual
-                              visual={subregion.visual}
-                              title={subregion.titles[language]}
-                            />
-                            <span>
-                              <strong>{subregion.titles[language]}</strong>
-                              <small>
-                                <Download size={13} aria-hidden="true" />{" "}
-                                {subregion.regionCount}{" "}
-                                {text("legacy.2190d3d74755")}
-                              </small>
-                              <CatalogRelease
-                                release={subregion}
-                                locale={locale}
-                                text={text}
-                              />
-                            </span>
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
+      {installError ? (
+        <p className="discover-feedback form-error" role="alert">
+          {installError}
         </p>
-      )}
-      <details className="catalog-special-offers" id="author-reference">
-        <summary>{text("ui.specialOffers")}</summary>
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="number-generator-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div
-              className="language-catalog-mark language-catalog-mark-multi"
-              aria-hidden="true"
+      ) : null}
+      {notice ? (
+        <div className="discover-feedback discover-success" role="status">
+          <p>{text("discover.added", [notice.title])}</p>
+          <Link className="button button-quiet" href="/app/decks">
+            {text("ui.myDecks")}
+          </Link>
+          {!notice.reference ? (
+            <Link
+              className="button button-quiet"
+              href={studyPlanSelectionHref("/app/decks")}
             >
-              <Hash size={34} strokeWidth={1.8} />
-            </div>
-            <div>
-              <span className="eyebrow">{text("legacy.0ed278763380")}</span>
-              <h2 id="number-generator-catalog-title">
-                {text("legacy.9d9809fb87c7")}
-              </h2>
-              <p>{text("legacy.550a66454fb5")}</p>
-            </div>
-            <Link className="button button-primary" href="/community/numbers">
-              {numberTemplate?.installedDeckId
-                ? text("legacy.e2bd5bf49a6f")
-                : text("legacy.bf5a3fd955c5")}
+              {text("ui.addToPlan")}
             </Link>
-          </div>
-        </section>
-        {developerLibraryTemplate && (
-          <section
-            className="geography-catalog language-catalog"
-            aria-labelledby="developer-reference-library-catalog-title"
-          >
-            <div className="geography-catalog-intro">
-              <div className="language-catalog-mark" aria-hidden="true">
-                <LibraryBig size={34} strokeWidth={1.8} />
-              </div>
-              <div>
-                <span className="eyebrow">{text("legacy.28d829c64af9")}</span>
-                <h2 id="developer-reference-library-catalog-title">
-                  {text("legacy.41457a371d05")}
-                </h2>
-                <p>
-                  {developerLibraryTemplate.description} ·{" "}
-                  {developerLibraryTemplate.categoryCount}{" "}
-                  {text("legacy.4701df20910b")} ·{" "}
-                  {developerLibraryTemplate.technologyCount}{" "}
-                  {text("legacy.9592bf3a847c")} ·{" "}
-                  {developerLibraryTemplate.cardCount}{" "}
-                  {text("legacy.1cec5d1f9906")}
-                </p>
-                <CatalogRelease
-                  release={developerLibraryTemplate}
-                  locale={locale}
-                  text={text}
-                />
-              </div>
-              {developerLibraryTemplate.installedDeckId ? (
-                <div className="language-catalog-actions">
-                  <Link
-                    className="button button-quiet"
-                    href={`/app/learn?deckId=${developerLibraryTemplate.installedDeckId}&practice=all`}
-                    aria-label={text("legacy.60724b432b48")}
-                  >
-                    {text("legacy.c8170041a849")}
-                  </Link>
-                  <button
-                    type="button"
-                    className="button button-quiet"
-                    disabled={
-                      isInstalling("developer-reference-library") ||
-                      developerLibraryTemplate.status === "CURRENT"
-                    }
-                    onClick={() => void installDeveloperReferenceLibrary()}
-                  >
-                    <RefreshCw
-                      size={17}
-                      aria-hidden="true"
-                      className={
-                        isInstalling("developer-reference-library")
-                          ? "spin"
-                          : undefined
-                      }
-                    />
-                    {isInstalling("developer-reference-library")
-                      ? text("legacy.b715aecd60dd")
-                      : developerLibraryTemplate.status === "CURRENT"
-                        ? text("catalog.release.upToDate")
-                        : text("legacy.6e5dffec1951")}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="button button-primary"
-                  disabled={isInstalling("developer-reference-library")}
-                  onClick={() => void installDeveloperReferenceLibrary()}
-                >
-                  <Download size={17} aria-hidden="true" />
-                  {isInstalling("developer-reference-library")
-                    ? developerLibraryTemplate.migrationAvailable
-                      ? text("legacy.27e7a86c43e6")
-                      : text("legacy.4b9c0cb20372")
-                    : developerLibraryTemplate.migrationAvailable
-                      ? text("legacy.6ed5c8a2c946")
-                      : text("legacy.8e16b0f18f04")}
-                </button>
-              )}
-            </div>
-          </section>
-        )}
+          ) : null}
+        </div>
+      ) : null}
+      {loading && !data ? (
+        <p role="status">{text("discover.loading")}</p>
+      ) : null}
 
-        {fnfHelpTemplate && (
-          <section
-            className="geography-catalog language-catalog"
-            aria-labelledby="fnf-help-library-catalog-title"
-          >
-            <div className="geography-catalog-intro">
-              <div className="language-catalog-mark" aria-hidden="true">
-                <Shapes size={34} strokeWidth={1.8} />
-              </div>
-              <div>
-                <span className="eyebrow">{text("legacy.74f9d27eb1d3")}</span>
-                <h2 id="fnf-help-library-catalog-title">
-                  {fnfHelpTemplate.title}
-                </h2>
-                <p>
-                  {fnfHelpTemplate.description} · {fnfHelpTemplate.topicCount}{" "}
-                  {text("legacy.692a52684c03")} · {fnfHelpTemplate.exampleCount}{" "}
-                  {text("legacy.2c08552848d6")} · {fnfHelpTemplate.cardCount}{" "}
-                  {text("legacy.c84292fd6409")}
+      {offer ? (
+        <div className="discover-detail" key={offer.id}>
+          {offer.generator ? (
+            <section className="discover-detail-summary">
+              <p>{text("discover.generatorHint")}</p>
+              <Link
+                className="button button-primary"
+                href={`/community/numbers${language ? `?language=${encodeURIComponent(language)}` : ""}`}
+              >
+                {text("discover.configure")}
+              </Link>
+              {installedId ? (
+                <Link
+                  className="button button-quiet"
+                  href={openHref(offer, installedId)}
+                >
+                  {text("discover.open")}
+                </Link>
+              ) : null}
+            </section>
+          ) : (
+            <>
+              <section
+                className="discover-detail-summary"
+                aria-labelledby="discover-scope-title"
+              >
+                <h2 id="discover-scope-title">{text("discover.scope")}</h2>
+                <p className="discover-meta">
+                  {text("discover.cards", [cardCount(scopeDecks)])} ·{" "}
+                  {text(
+                    scopeDecks.length === 1
+                      ? "discover.deck"
+                      : "discover.decks",
+                    [scopeDecks.length],
+                  )}
                 </p>
-                <CatalogRelease
-                  release={fnfHelpTemplate}
-                  locale={locale}
-                  text={text}
-                />
-              </div>
-              {fnfHelpTemplate.installedDeckId ? (
-                <div className="language-catalog-actions">
-                  <Link
-                    className="button button-quiet"
-                    href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}
-                    aria-label={text("legacy.a5270722d924")}
-                  >
-                    {text("legacy.c8170041a849")}
-                  </Link>
-                  <button
-                    type="button"
-                    className="button button-quiet"
-                    disabled={
-                      isInstalling("fnf-help-library") ||
-                      fnfHelpTemplate.status === "CURRENT"
-                    }
-                    onClick={() => void installFnfHelpLibrary()}
-                  >
-                    <RefreshCw
-                      size={17}
-                      aria-hidden="true"
-                      className={
-                        isInstalling("fnf-help-library") ? "spin" : undefined
+                <p>
+                  {text("discover.availableLanguages", [
+                    languageNames(offer.locales),
+                  ])}
+                </p>
+                {offer.reference ? (
+                  <p>{text("discover.referenceHint")}</p>
+                ) : null}
+                {offer.geographyId && offer.parentId ? (
+                  <p>{text("discover.parentHint")}</p>
+                ) : null}
+                {descendants.length ? (
+                  <label className="discover-include">
+                    <input
+                      type="checkbox"
+                      checked={includeChildren}
+                      disabled={installing.has(offer.id)}
+                      onChange={(event) =>
+                        setIncludeChildren(event.target.checked)
                       }
                     />
-                    {isInstalling("fnf-help-library")
-                      ? text("legacy.b715aecd60dd")
-                      : fnfHelpTemplate.status === "CURRENT"
-                        ? text("catalog.release.upToDate")
-                        : text("legacy.6e5dffec1951")}
-                  </button>
+                    {text("discover.includeChildren", [descendants.length])}
+                  </label>
+                ) : null}
+                <div className="discover-detail-actions">
+                  {installedId ? (
+                    <Link
+                      className="button button-primary"
+                      href={openHref(offer, installedId)}
+                    >
+                      {text("discover.open")}
+                    </Link>
+                  ) : null}
+                  {!installedId || !current || childrenNeedInstall ? (
+                    <button
+                      type="button"
+                      className={`button ${installedId ? "button-quiet" : "button-primary"}`}
+                      disabled={installing.has(offer.id)}
+                      onClick={() => void install(offer)}
+                    >
+                      {text(
+                        installing.has(offer.id)
+                          ? "discover.updating"
+                          : installedId && !childrenNeedInstall
+                            ? "discover.update"
+                            : "discover.add",
+                      )}
+                    </button>
+                  ) : null}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  className="button button-primary"
-                  disabled={isInstalling("fnf-help-library")}
-                  onClick={() => void installFnfHelpLibrary()}
-                >
-                  <Download size={17} aria-hidden="true" />
-                  {isInstalling("fnf-help-library")
-                    ? text("legacy.4b9c0cb20372")
-                    : text("legacy.f5dec18da878")}
-                </button>
-              )}
+              </section>
+              <OfferPreview
+                key={`${offer.id}:${language || locale}`}
+                offer={offer}
+                previewLocale={language || locale}
+              />
+              {offer.geographyId ? (
+                offers.some((item) => item.parentId === offer.id) ? (
+                  <section className="discover-regions">
+                    <h2>{text("discover.subregions")}</h2>
+                    <ul className="discover-offers">
+                      {offers
+                        .filter((item) => item.parentId === offer.id)
+                        .map(renderOffer)}
+                    </ul>
+                  </section>
+                ) : null
+              ) : offer.decks.length > 1 ? (
+                <details className="discover-included-decks">
+                  <summary>
+                    {text("discover.scope")} ·{" "}
+                    {text("discover.decks", [offer.decks.length])}
+                  </summary>
+                  <ul>
+                    {offer.decks
+                      .filter((deck) => deck.parentKey === offer.rootKey)
+                      .map((deck) => (
+                        <li key={deck.key}>{deck.title}</li>
+                      ))}
+                  </ul>
+                </details>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : offerId && data ? (
+        <p className="discover-feedback" role="status">
+          {text("discover.notFound")}
+        </p>
+      ) : !helpReferences ? (
+        <>
+          <div className="discover-search" role="search">
+            <label htmlFor="discover-search">
+              {text(category ? "discover.searchCategory" : "discover.search")}
+            </label>
+            <div className="discover-search-control">
+              <Search size={20} aria-hidden="true" />
+              <input
+                id="discover-search"
+                type="search"
+                autoComplete="off"
+                value={query}
+                placeholder={text("discover.searchHint")}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  router.replace(
+                    discoverHref({
+                      category,
+                      query: event.target.value,
+                      language,
+                    }),
+                  );
+                }}
+              />
             </div>
-          </section>
-        )}
-      </details>
+          </div>
+          {category === "languages" ? (
+            <div className="discover-language">
+              <label htmlFor="discover-language">
+                {text("discover.language")}
+              </label>
+              <select
+                id="discover-language"
+                value={language}
+                onChange={(event) => {
+                  router.replace(href({ language: event.target.value }));
+                }}
+              >
+                <option value="">{text("discover.allLanguages")}</option>
+                {discoverLanguageCodes.map((value) => (
+                  <option key={value} value={value}>
+                    {languageNames([value])}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {!category && !query.trim() ? (
+            <nav
+              className="discover-categories"
+              aria-label={text("discover.categories")}
+            >
+              {discoverCategories.map((id) => {
+                const Icon = categoryIcons[id];
+                return (
+                  <Link
+                    href={discoverHref({ category: id })}
+                    key={id}
+                    className="discover-category"
+                  >
+                    <Icon size={28} aria-hidden="true" />
+                    <span>
+                      <strong>{text(categoryMessage(id))}</strong>
+                      <span>{text(`discover.hint.${id}`)}</span>
+                    </span>
+                    <ChevronRight size={20} aria-hidden="true" />
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : data ? (
+            <>
+              <p className="discover-result-count" role="status">
+                {text("discover.results", [results.length])}
+              </p>
+              {results.length ? (
+                <ul className="discover-offers">{results.map(renderOffer)}</ul>
+              ) : (
+                <p>{text("discover.noResults")}</p>
+              )}
+            </>
+          ) : null}
+        </>
+      ) : null}
     </section>
   );
 }

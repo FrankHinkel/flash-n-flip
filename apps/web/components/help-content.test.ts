@@ -31,6 +31,15 @@ describe("online help content", () => {
     expect(filterHelpTopics("   ")).toEqual(helpTopics);
   });
 
+  it("explains compact number setup, stable progress and retained legacy exercises", () => {
+    const content = JSON.stringify(helpTopics);
+    expect(content).toContain("alle 90 Zahlen");
+    expect(content).toContain("ausgeschlossene Zahlen pausiert");
+    expect(content).toContain(
+      "Bisherige Sammlungen mit wechselnden Zahlen bleiben getrennt verfügbar",
+    );
+  });
+
   it("documents Mermaid and the four requested diagram examples", () => {
     const topic = helpTopics.find(({ id }) => id === "mermaid-diagrams");
     const content = JSON.stringify(topic);
@@ -105,7 +114,7 @@ describe("online help content", () => {
   it("documents the curated developer reference collections", () => {
     const text = JSON.stringify(helpTopics);
     expect(text).toContain(
-      "one installable English Developer Reference Library",
+      "Under Discover → Programming, you can preview and add",
     );
     expect(text).toContain("SQL, PostgreSQL, XPath, JSONPath, jq, YAML");
     expect(text).toContain(
@@ -116,7 +125,9 @@ describe("online help content", () => {
       "not included in scheduled sessions or Practice all runs",
     );
     expect(text).toContain("Flash-n-Flip Help");
-    expect(text).toContain("JSXGraph topic deck");
+    expect(text).toContain("Help & information → Author references");
+    expect(text).toContain("copyable JSXGraph, Mermaid and ABC examples");
+    expect(text).not.toContain("stored as compact AAC");
     expect(text).toContain("Introduction, Advanced, and Practical Samples");
     expect(filterHelpTopics("Kubernetes").map(({ id }) => id)).toContain(
       "decks-and-collections",

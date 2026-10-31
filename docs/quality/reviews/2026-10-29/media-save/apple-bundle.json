@@ -1,0 +1,13 @@
+{
+  "baseCommit": "99113279",
+  "uncommittedFix": true,
+  "productVersion": "0.5.2",
+  "appleBuild": "5",
+  "configuration": "Debug generic iOS, CODE_SIGNING_ALLOWED=NO",
+  "bundleSha256": {
+    "portable": "214bfaf1ef664433f938aa9a45779321a7875be5fe68ff3842df6a27b4d0079f",
+    "xcode": "214bfaf1ef664433f938aa9a45779321a7875be5fe68ff3842df6a27b4d0079f",
+    "device_build": "214bfaf1ef664433f938aa9a45779321a7875be5fe68ff3842df6a27b4d0079f"
+  },
+  "installed": false
+}

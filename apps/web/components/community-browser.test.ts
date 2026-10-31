@@ -24,6 +24,19 @@ describe("Discover and My iCloud navigation", () => {
     expect(settings).toContain("cloudOpen ? <MyICloudBrowser /> : null");
   });
 
+  it("moves old author links to Help instead of leaving a hidden Discover section", () => {
+    expect(communityBrowser).toContain(
+      'router.replace("/app/help?section=examples")',
+    );
+    const help = readFileSync(
+      new URL("./online-help.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(help).toContain('href="/app/help?section=examples"');
+    expect(help).toContain("<DeckCatalog helpReferences />");
+    expect(help).not.toContain("/community#author-reference");
+  });
+
   it("keeps inventory reads bounded and starts writes only explicitly", () => {
     expect(myICloudBrowser).toContain("listLocalProductDeckMetadata()");
     expect(myICloudBrowser).toContain("buildMyICloudDeckTree");

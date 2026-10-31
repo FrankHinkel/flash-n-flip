@@ -639,3 +639,96 @@ Aktuelle Prüfergebnisse, Bundlevergleich und verbleibende Abnahmen:
 Scheduler und Synchronisationslogik bleiben unverändert. Die verbleibenden
 Schritte des Plans sind praktische Geräteabnahme und moderierte Erstnutzertests,
 keine pauschale Neugestaltung bereits funktionierender Abläufe.
+
+## 13. Entdecken mit Kategorien und Vorschau
+
+Stand: 29.–30. Oktober 2026. Konkretisierung von UI-18 nach dem zusätzlichen
+Nutzerfeedback zum unübersichtlichen Entdecken-Bereich.
+
+- Der Einstieg zeigt nur Suche und vier Kategorien: **Sprachen**, **Geografie**,
+  **Mathematik & Naturwissenschaften**, **Programmieren**.
+- Kategorien führen zu kompakten Angeboten mit Titel, Kurzbeschreibung,
+  Sprache/Umfang und einer Aktion **Ansehen**. Suche findet auch Länder,
+  Regionen und Themen innerhalb der Entwickler-Referenz. Suchbegriff und
+  Sprachfilter bleiben beim Zurückgehen erhalten.
+- Erst die Detailseite zeigt echte Beispielkarten, enthaltene Decks und
+  **Hinzufügen**. Bereits installierte Angebote bieten **Öffnen**. Überflüssige
+  deaktivierte „Aktuell“-Buttons entfallen. Updates bleiben ausdrücklich
+  ausführbare Aktionen; die bestehenden Installations-/Updatewege bleiben.
+- Geografie beginnt mit Welt und Kontinenten. Länder und Regionen folgen
+  innerhalb des jeweiligen Angebots oder über die Suche. Das Einbeziehen
+  weiterer Unterdecks erfordert eine sichtbare Umfangsauswahl.
+- Nur Sprachen zeigt einen Sprachfilter. **Zahlen üben** ist dort eingeordnet;
+  seine Einrichtung öffnet erst nach Auswahl. Gefilterte Sprachen verändern
+  nicht stillschweigend den Umfang einer vollständigen Sammlung.
+- Technische FNF-/JSXGraph-/Mermaid-/ABC-Beispiele stehen unter
+  **Hilfe & Informationen → Autorenreferenz**. Die Entwickler-Referenz bleibt
+  bei Programmieren. Alte Autorenlinks werden zur Hilfe weitergeleitet.
+- Vorschauen verwenden ausschließlich den signaturgeprüften Katalog und die
+  vorhandenen sicheren Renderer, schreiben keinen Lernfortschritt und zeigen
+  passende Sprachpaare bzw. Referenzinhalte. Nach erfolgreicher Installation
+  werden Öffnen und der bestehende Einstieg zur Planauswahl angeboten.
+- Erfolgsmeldungen gehören zur abgeschlossenen Detailaufgabe und werden beim
+  Wechsel zur Übersicht entfernt. Ladefehler zeigen Wiederholen und werden
+  nicht als leerer Katalog ausgegeben. Die veraltete Audio-Neukodierungszusage
+  in der Hilfe ist entfernt.
+
+Nachweis: [Prüfbericht mit Screenshots und Build-Audit](docs/quality/reviews/2026-10-29/discover-categories/README.md).
+1.076 Web-Tests sind abgedeckt, die 41 gezielten Abschlusstests bestehen; ein
+Worker-Starttimeout im Gesamtlauf wurde mit den drei betroffenen Tests separat
+geprüft. Web-Produktion und unsignierter iOS-Gerätebuild bestehen. Alle 160
+Bundle-Dateien stimmen zwischen portablem Build, Xcode-Projekt und gebauter
+App überein; der kompilierte Iconkatalog besteht die Prüfung. Scheduler,
+Synchronisation und signierter Katalog bleiben unverändert.
+
+Die native Bedienabnahme bleibt wie zuvor ausdrücklich auf später verschoben.
+Gerätebuild und Browserprüfung ersetzen weder diese Abnahme noch die im
+Prüfbericht aufgeführten öffentlichen Release-Gates. Kein Commit und kein Upload.
+
+## 14. Tastaturrest in der kompatiblen Mac-App
+
+Stand: 30. Oktober 2026. Der erneut gemeldete leere Tastaturstreifen wird in
+der nativen Apple-Hülle korrigiert. Die Mac-App unterbindet die iPad-Accessory
+und beendet erneut geöffnete Eingabesitzungen, wenn kein echtes Textfeld aktiv
+ist. DOM-Fokus und native Tastaturereignisse werden dafür gemeinsam geprüft;
+echte Eingaben und native Dialoge bleiben geschützt. Textauswahl und Cmd+C
+bleiben auch bei Referenzkarten verfügbar. Der iPhone-/iPad-Eingabepfad bleibt.
+
+Der finale Build wurde tatsächlich als **My Mac (Designed for iPad)** gestartet:
+Tippen, Kopieren/Einfügen, Rücknavigation und die interaktive Grafik auf der
+gemeldeten Referenz 38/43 funktionieren. Die native Tastaturfläche überschneidet
+die App nach Suchfeld-Blur sowie nach Grafik- und Textauswahl mit **0 pt**;
+im reproduzierten Fehlerzustand betrug die Überschneidung 55 pt.
+
+45 Apple-Tests, Typecheck und der unsignierte iOS-Gerätebuild bestehen.
+Alle 160 Bundle-Dateien und der kompilierte Iconkatalog sind geprüft.
+Version bleibt 0.5.2 / Apple-Build 5. Kein Commit, Upload oder Deployment.
+Die Mac-Abnahme dieses Fehlers ersetzt keine allgemeine iPhone-/iPad- oder
+VoiceOver-Abnahme. Details: [Prüfbericht](docs/quality/reviews/2026-10-30/mac-input-accessory/README.md).
+
+## 15. Zahlen üben mit minimalem Grundstock
+
+Stand: 31. Oktober 2026. Die Vorschau entfällt. Entdecken → Sprachen → Zahlen
+führt direkt zur Einrichtung mit übernommener Zielsprache, drei kombinierbaren
+Bereichen 0–10, 11–100 und 101–1000 sowie **Lernen starten**. Für 11–100 lässt
+sich die kompakte Auswahl durch alle 90 Zahlen ersetzen. Ein ohnehin bereits
+vollständiger Sprachbestand bietet diesen wirkungslosen Zusatzschalter nicht.
+
+Französisch verwendet exakt die besprochenen **35 Zahlen** für 0–100. Alle 35
+angebotenen Zielsprachen besitzen explizite Profile. Eine Karte zeigt vorn die
+Ziffer, nach dem Aufdecken Ziffer und Zahlwort. Die Übung wird lokal gespeichert,
+unter Meine Decks abgelegt und im normalen Lernablauf mit dessen bestehenden
+Tageslimits geöffnet. Letzte Auswahl und gespeicherte Bereiche bleiben erhalten.
+
+Jede Zahl hat eine feste Kartenidentität. Bereichswechsel pausieren ausgeschlossene
+Zahlen und erhalten ihre Bewertungen; erneutes Einbeziehen verwendet dieselben
+Karten. Die frühere Collection mit wechselnden Zahlen und ihre Historie bleiben
+getrennt verfügbar. Scheduler und Synchronisationsverhalten bleiben unverändert.
+
+Web-, Domain-, Persistenz- und Gerätebuild-Prüfungen bestehen. Native Bedienprüfung
+des neuen Ablaufs bleibt wegen des gesperrten Macs offen. Produktversion **0.5.3**,
+Apple-Build **6**; alle offenen Änderungen dieses Repositories werden mit dem
+angeforderten `!!!*` zusammengefasst. Kein Push oder Upload.
+
+Nachweise und Abnahmegrenzen: [Prüfbericht](docs/quality/reviews/2026-10-31/number-practice/README.md),
+[ADR 0059](docs/architecture/decisions/0059-fixed-language-number-practice.md).

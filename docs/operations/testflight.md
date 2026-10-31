@@ -57,6 +57,30 @@ internal channel, offline bundle, signature, production CloudKit and push
 entitlements, no debugger entitlement, and an unexpired TestFlight profile.
 The IPA's SHA-256 is recorded. No development server URL is accepted.
 
+## App icon
+
+The native `AppIcon` catalog declares individual iPhone/iPad sizes and an
+explicit `ios-marketing` image at 1024 × 1024 pixels. All PNGs are generated
+without alpha from `Ressourcen/Flash-n-Flip.svg`; the catalog is generated too.
+The Xcode preparation phase runs `pnpm assets:brand`, so direct Organizer
+archives use the current generated images. `pnpm assets:brand:check` verifies
+their reproducibility.
+
+The archive/IPA audit checks both primary icon bindings, the actual bundled
+icon files and the opaque 1024-pixel marketing rendition in `Assets.car`.
+A missing or transparent Store icon stops the audit before upload.
+
+App Store Connect obtains the icon from an uploaded build; it is not a separate
+PNG upload on the app record. Generate a new archive and upload the audited
+candidate through the existing workflow. The app's Store draft and uploaded
+TestFlight builds are separate: assigning a build to a public version must
+respect its version and distribution channel. Do not change the product's
+major/minor line merely to replace an icon placeholder.
+
+Apple references: [Add an app icon](https://developer.apple.com/help/app-store-connect/manage-app-information/add-an-app-icon/),
+[asset catalog configuration](https://developer.apple.com/documentation/xcode/configuring-your-app-icon),
+[choose a build](https://developer.apple.com/help/app-store-connect/manage-builds/choose-a-build-to-submit/).
+
 ## CloudKit
 
 TestFlight uses CloudKit **Production**. Deploy the current development schema

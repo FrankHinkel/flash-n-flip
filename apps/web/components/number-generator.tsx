@@ -1,127 +1,86 @@
 "use client";
 
-import { ArrowLeftRight, Check, Dices, Download, Eye } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-
 import {
-  createNumberPracticeSequence,
-  formatNumberDigits,
-  numberPracticeSequenceVersion,
   numberLanguages,
-  numberLanguage,
-  numberPracticeRanges,
   resolveDefaultNumberLocale,
-  spellNumber,
   type NumberLocale,
-  type NumberPracticeMaximum,
 } from "@flashcards/domain/numbers";
-
 import {
-  installLocalNumberCollection,
-  localNumberCollectionTemplate,
+  numberPracticeBands,
+  numberPracticeValues,
+  type NumberPracticeBand,
+  type NumberPracticeSettings,
+} from "@flashcards/domain/number-collection";
+import {
+  installLocalFixedNumberPractice,
+  localFixedNumberPracticeSettings,
 } from "../lib/local-product-repository";
 import { useI18n } from "./i18n-provider";
 
-const secureRandom = (): number => {
-  const values = new Uint32Array(1);
-  crypto.getRandomValues(values);
-  return values[0]! / 2 ** 32;
-};
-
-const optionLabel = (locale: NumberLocale): string => {
-  const language = numberLanguage(locale);
-  return `${language.nativeName} · ${language.englishName}`;
-};
-
-const sequenceStorageKey = (maximum: NumberPracticeMaximum): string =>
-  `flash-n-flip.number-practice.v${numberPracticeSequenceVersion}.${maximum}`;
-
-const expectedSequenceLength = (maximum: NumberPracticeMaximum): number =>
-  maximum === 10 ? 11 : maximum === 100 ? 37 : 100;
-
-const validStoredSequence = (
-  maximum: NumberPracticeMaximum,
-  sequence: unknown,
-  index: unknown,
-): sequence is number[] =>
-  Array.isArray(sequence) &&
-  sequence.length === expectedSequenceLength(maximum) &&
-  new Set(sequence).size === sequence.length &&
-  sequence.every(
-    (entry) =>
-      Number.isSafeInteger(entry) &&
-      entry >= (maximum <= 100 ? 0 : 1) &&
-      entry <= maximum,
-  ) &&
-  Number.isSafeInteger(index) &&
-  Number(index) >= 0 &&
-  Number(index) < sequence.length;
+const preferenceKey = "flash-n-flip.number-settings.v1";
+const initialSettings = (
+  targetLocale: NumberLocale,
+): NumberPracticeSettings => ({
+  targetLocale,
+  bands: ["0-10"],
+  allBelowHundred: false,
+});
 
 export function NumberGenerator() {
-  const { locale: uiLocale, text } = useI18n();
-  const defaultSource = resolveDefaultNumberLocale(uiLocale);
-  const [sourceLocale, setSourceLocale] = useState<NumberLocale>(defaultSource);
-  const [targetLocale, setTargetLocale] = useState<NumberLocale>(
-    defaultSource === "en-US" ? "de-DE" : "en-US",
+  const { locale, text } = useI18n();
+  const router = useRouter();
+  const params = useSearchParams();
+  const requestedLanguage = params.get("language");
+  const [settings, setSettings] = useState<NumberPracticeSettings>(() =>
+    initialSettings(locale === "en" ? "fr-FR" : "en-US"),
   );
-  const [value, setValue] = useState(0);
-  const [inputValue, setInputValue] = useState("0");
-  const [rangeMaximum, setRangeMaximum] = useState<NumberPracticeMaximum>(100);
-  const [practiceSequence, setPracticeSequence] = useState<number[]>([]);
-  const [practiceIndex, setPracticeIndex] = useState(0);
-  const [sourceWords, setSourceWords] = useState("");
-  const [targetWords, setTargetWords] = useState("");
-  const [revealed, setRevealed] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [installedDeckId, setInstalledDeckId] = useState<string | null>(null);
-  const [installedPairDeckId, setInstalledPairDeckId] = useState<string | null>(
-    null,
-  );
-  const [installing, setInstalling] = useState(false);
-  const [installStatus, setInstallStatus] = useState("");
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    const refresh = () =>
-      void localNumberCollectionTemplate()
-        .then((template) => {
-          if (active) setInstalledDeckId(template.installedDeckId);
-        })
-        .catch(() => {});
-    refresh();
-    window.addEventListener("flash-n-flip:decks-changed", refresh);
-    return () => {
-      active = false;
-      window.removeEventListener("flash-n-flip:decks-changed", refresh);
-    };
-  }, []);
+    let next = initialSettings(
+      requestedLanguage
+        ? resolveDefaultNumberLocale(requestedLanguage)
+        : locale === "en"
+          ? "fr-FR"
+          : "en-US",
+    );
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem(preferenceKey) ?? "null",
+      ) as NumberPracticeSettings | null;
+      if (stored) {
+        numberPracticeValues(stored);
+        if (!requestedLanguage || stored.targetLocale === next.targetLocale)
+          next = stored;
+      }
+    } catch {
+      /* A missing/damaged device preference does not replace saved deck settings. */
+    }
+    setSettings(next);
+    setInitialized(true);
+  }, [requestedLanguage, locale]);
 
+  const target = settings.targetLocale;
   useEffect(() => {
-    const source = resolveDefaultNumberLocale(uiLocale);
-    setSourceLocale(source);
-    setTargetLocale(source === "en-US" ? "de-DE" : "en-US");
-    setRevealed(false);
-  }, [uiLocale]);
-
-  useEffect(() => {
+    if (!initialized) return;
     let active = true;
     setLoading(true);
+    setLoadFailed(false);
     setError("");
-    void Promise.all([
-      spellNumber(value, sourceLocale),
-      spellNumber(value, targetLocale),
-    ])
-      .then(([source, target]) => {
-        if (!active) return;
-        setSourceWords(source);
-        setTargetWords(target);
+    void localFixedNumberPracticeSettings(target)
+      .then((stored) => {
+        if (active && stored) setSettings(stored);
       })
       .catch(() => {
-        if (active) {
-          setError(text("legacy.fce677df2d11"));
-        }
+        if (active) setLoadFailed(true);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -129,327 +88,167 @@ export function NumberGenerator() {
     return () => {
       active = false;
     };
-  }, [sourceLocale, targetLocale, text, value]);
+  }, [target, initialized, retry]);
 
-  const orderedLanguages = useMemo(
-    () =>
-      [...numberLanguages].sort((left, right) =>
-        optionLabel(left.locale).localeCompare(
-          optionLabel(right.locale),
-          uiLocale,
-        ),
-      ),
-    [uiLocale],
-  );
-  const sourceLanguage = numberLanguage(sourceLocale);
-  const targetLanguage = numberLanguage(targetLocale);
+  const languageOptions = useMemo(() => {
+    const names = new Intl.DisplayNames([locale], { type: "language" });
+    return numberLanguages
+      .map((language) => ({
+        ...language,
+        label:
+          language.locale === "ko-KR"
+            ? text("numbers.korean")
+            : (names.of(language.locale) ?? language.nativeName),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale));
+  }, [locale, text]);
+  const count = settings.bands.length
+    ? numberPracticeValues(settings).length
+    : 0;
+  const compactSmallCount = numberPracticeValues({
+    ...settings,
+    bands: ["11-100"],
+    allBelowHundred: false,
+  }).length;
+  const busy = loading || saving;
 
-  useEffect(() => {
-    resumeSequence(100);
-  }, []);
-
-  function chooseValue(next: number) {
-    if (!Number.isSafeInteger(next) || next < 0 || next > rangeMaximum) return;
-    setValue(next);
-    setInputValue(String(next));
-    setRevealed(false);
-  }
-
-  function startSequence(maximum: NumberPracticeMaximum) {
-    const sequence = createNumberPracticeSequence(maximum, secureRandom);
-    setRangeMaximum(maximum);
-    setPracticeSequence(sequence);
-    setPracticeIndex(0);
-    setValue(sequence[0]!);
-    setInputValue(String(sequence[0]!));
-    setRevealed(false);
-    localStorage.setItem(
-      sequenceStorageKey(maximum),
-      JSON.stringify({ sequence, index: 0 }),
-    );
-  }
-
-  function resumeSequence(maximum: NumberPracticeMaximum) {
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem(sequenceStorageKey(maximum)) ?? "null",
-      ) as { sequence?: unknown; index?: unknown } | null;
-      if (
-        stored &&
-        validStoredSequence(maximum, stored.sequence, stored.index)
-      ) {
-        const index = Number(stored.index);
-        setRangeMaximum(maximum);
-        setPracticeSequence(stored.sequence);
-        setPracticeIndex(index);
-        setValue(stored.sequence[index]!);
-        setInputValue(String(stored.sequence[index]!));
-        setRevealed(false);
-        return;
-      }
-    } catch {
-      // A damaged local preview round is safely replaced below.
-    }
-    startSequence(maximum);
-  }
-
-  function chooseNextValue() {
-    const nextIndex = practiceIndex + 1;
-    if (nextIndex < practiceSequence.length) {
-      setPracticeIndex(nextIndex);
-      chooseValue(practiceSequence[nextIndex]!);
-      localStorage.setItem(
-        sequenceStorageKey(rangeMaximum),
-        JSON.stringify({ sequence: practiceSequence, index: nextIndex }),
-      );
-      return;
-    }
-    startSequence(rangeMaximum);
-  }
-
-  async function installCollection() {
-    setInstalling(true);
+  function toggleBand(band: NumberPracticeBand) {
     setError("");
-    setInstallStatus("");
+    setSettings((previous) => ({
+      ...previous,
+      bands: numberPracticeBands.filter((item) =>
+        item === band
+          ? !previous.bands.includes(item)
+          : previous.bands.includes(item),
+      ),
+    }));
+  }
+
+  async function start() {
+    if (busy || loadFailed || !count) return;
+    setSaving(true);
+    setError("");
     try {
-      const result = await installLocalNumberCollection({
-        sourceLocale,
-        targetLocale,
-        maximum: rangeMaximum,
-        uiLocale: uiLocale === "de" ? "de" : "en",
-      });
-      setInstalledDeckId(result.selectedDeckId);
-      setInstalledPairDeckId(result.pairDeckId);
+      const { deckId } = await installLocalFixedNumberPractice(
+        settings,
+        locale,
+      );
+      try {
+        localStorage.setItem(preferenceKey, JSON.stringify(settings));
+      } catch {
+        /* The authoritative selection is already saved with the deck. */
+      }
       window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-      setInstallStatus(text("legacy.36d1104a4e31"));
+      router.push(`/app/learn?deckId=${encodeURIComponent(deckId)}`);
     } catch {
-      setError(text("legacy.a96431cb8034"));
-    } finally {
-      setInstalling(false);
+      setError(text("numbers.saveError"));
+      setSaving(false);
     }
   }
 
   return (
-    <main className="number-generator-page">
-      <header className="number-generator-header">
-        <span className="eyebrow">{text("legacy.a088efe14bba")}</span>
-        <h1>{text("legacy.9d9809fb87c7")}</h1>
-        <p>{text("legacy.d662a764268f")}</p>
+    <main className="number-setup-page">
+      <Link className="back-link" href="/community?category=languages">
+        {text("discover.category.languages")}
+      </Link>
+      <header>
+        <h1>{text("discover.offer.numbers")}</h1>
+        <p>{text("numbers.intro")}</p>
       </header>
-
-      <section
-        className="number-generator-controls"
-        aria-label={text("legacy.de6a3ecc72a8")}
+      <form
+        className="number-setup-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void start();
+        }}
+        aria-busy={busy}
       >
-        <label>
-          <span>{text("legacy.51464bd8fbba")}</span>
+        <label className="number-target-field" htmlFor="number-target">
+          <span>{text("numbers.target")}</span>
           <select
-            value={sourceLocale}
+            id="number-target"
+            value={target}
+            disabled={busy}
             onChange={(event) => {
-              const next = event.target.value as NumberLocale;
-              setSourceLocale(next);
-              if (next === targetLocale) setTargetLocale(sourceLocale);
-              setRevealed(false);
+              setSettings(initialSettings(event.target.value as NumberLocale));
             }}
           >
-            {orderedLanguages.map((language) => (
-              <option
-                key={language.locale}
-                value={language.locale}
-                disabled={language.locale === targetLocale}
-              >
-                {optionLabel(language.locale)}
+            {languageOptions.map((language) => (
+              <option key={language.locale} value={language.locale}>
+                {language.label}
               </option>
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          className="button button-quiet number-language-swap"
-          aria-label={text("legacy.1a0b869f56aa")}
-          onClick={() => {
-            setSourceLocale(targetLocale);
-            setTargetLocale(sourceLocale);
-            setRevealed(false);
-          }}
+        <fieldset
+          disabled={busy || loadFailed}
+          aria-describedby="number-scope-note"
         >
-          <ArrowLeftRight aria-hidden="true" />
-        </button>
-        <label>
-          <span>{text("legacy.b8d8447ad6c8")}</span>
-          <select
-            value={targetLocale}
-            onChange={(event) => {
-              setTargetLocale(event.target.value as NumberLocale);
-              setRevealed(false);
-            }}
-          >
-            {orderedLanguages.map((language) => (
-              <option
-                key={language.locale}
-                value={language.locale}
-                disabled={language.locale === sourceLocale}
-              >
-                {optionLabel(language.locale)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="number-range-field">
-          <span>{text("legacy.3c0f6d25d8aa")}</span>
-          <select
-            value={rangeMaximum}
-            onChange={(event) => {
-              const maximum = Number(event.target.value);
-              if (
-                numberPracticeRanges.includes(maximum as NumberPracticeMaximum)
-              ) {
-                resumeSequence(maximum as NumberPracticeMaximum);
-              }
-            }}
-          >
-            {numberPracticeRanges.map((maximum) => (
-              <option key={maximum} value={maximum}>
-                0–{formatNumberDigits(maximum, defaultSource)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="number-value-field">
-          <span>
-            {text("legacy.364b99cb7fa6")} · {practiceIndex + 1}/
-            {practiceSequence.length || rangeMaximum}
-          </span>
-          <input
-            type="number"
-            min={0}
-            max={rangeMaximum}
-            step={1}
-            inputMode="numeric"
-            value={inputValue}
-            onChange={(event) => {
-              const nextInput = event.target.value;
-              setInputValue(nextInput);
-              const next = Number(nextInput);
-              if (
-                nextInput !== "" &&
-                Number.isSafeInteger(next) &&
-                next >= 0 &&
-                next <= rangeMaximum
-              ) {
-                setValue(next);
-                setRevealed(false);
-              }
-            }}
-            onBlur={() => setInputValue(String(value))}
-          />
-        </label>
-        <button
-          type="button"
-          className="button button-quiet"
-          onClick={chooseNextValue}
-        >
-          <Dices aria-hidden="true" />
-          {text("legacy.338acf3297a6")}
-        </button>
-      </section>
-
-      <section className="number-generator-install" aria-live="polite">
-        <div>
-          <strong>
-            {text("legacy.9c7318d5a591", [
-              sourceLanguage.nativeName,
-              targetLanguage.nativeName,
-            ])}
-          </strong>
-          <span>{text("legacy.c9acea3d57e0")}</span>
-        </div>
-        <button
-          type="button"
-          className="button button-primary"
-          onClick={() => void installCollection()}
-          disabled={installing}
-        >
-          <Download aria-hidden="true" />
-          {installing
-            ? text("legacy.4b9c0cb20372")
-            : installedDeckId
-              ? text("legacy.0ee6a04994f0")
-              : text("legacy.92c0875233f7")}
-        </button>
-        {installedDeckId ? (
-          <Link
-            className="button button-quiet"
-            href={`/app/decks?expand=${installedDeckId}`}
-          >
-            <Check aria-hidden="true" />
-            {text("legacy.8c2cb0d5a918")}
-          </Link>
-        ) : null}
-        {installedPairDeckId ? (
-          <Link
-            className="button button-quiet"
-            href={`/app/learn?deckId=${installedPairDeckId}`}
-          >
-            {text("legacy.72a92f8498c4")}
-          </Link>
-        ) : null}
-        {installStatus ? <p className="form-success">{installStatus}</p> : null}
-      </section>
-
-      <section
-        className="number-generator-card"
-        data-number-card
-        aria-live="polite"
-        aria-busy={loading}
-      >
-        <div className="number-card-side">
-          <span>{sourceLanguage.nativeName}</span>
-          <strong dir={sourceLanguage.direction}>
-            {formatNumberDigits(value, sourceLocale)}
-          </strong>
-          <p lang={sourceLocale} dir={sourceLanguage.direction}>
-            {loading ? "…" : sourceWords}
-          </p>
-        </div>
-        <div className="number-card-divider" aria-hidden="true">
-          →
-        </div>
-        <div
-          className={`number-card-side number-card-answer${revealed ? " revealed" : ""}`}
-        >
-          <span>{targetLanguage.nativeName}</span>
-          {revealed ? (
-            <>
-              <strong dir={targetLanguage.direction}>
-                {formatNumberDigits(value, targetLocale)}
-              </strong>
-              <p lang={targetLocale} dir={targetLanguage.direction}>
-                {loading ? "…" : targetWords}
-              </p>
-            </>
-          ) : (
+          <legend>{text("numbers.ranges")}</legend>
+          {numberPracticeBands.map((band) => (
+            <label className="number-range-option" key={band}>
+              <input
+                type="checkbox"
+                checked={settings.bands.includes(band)}
+                onChange={() => toggleBand(band)}
+              />
+              <span>
+                {band === "101-1000" ? "101–1000" : band.replace("-", "–")}
+              </span>
+            </label>
+          ))}
+          {settings.bands.includes("11-100") && compactSmallCount < 90 ? (
+            <label className="number-all-option">
+              <input
+                type="checkbox"
+                checked={settings.allBelowHundred}
+                onChange={(event) =>
+                  setSettings((previous) => ({
+                    ...previous,
+                    allBelowHundred: event.target.checked,
+                  }))
+                }
+              />
+              <span>{text("numbers.all")}</span>
+            </label>
+          ) : null}
+        </fieldset>
+        <p id="number-scope-note" className="number-setup-hint">
+          {text(
+            compactSmallCount === 90 && settings.bands.includes("11-100")
+              ? "numbers.fullVocabulary"
+              : "numbers.compact",
+          )}
+        </p>
+        <p className="number-setup-count" role="status">
+          {count ? text("numbers.count", [count]) : text("numbers.empty")}
+        </p>
+        {loadFailed ? (
+          <div role="alert">
+            <p>{text("numbers.loadError")}</p>
             <button
               type="button"
-              className="button button-primary"
-              onClick={() => setRevealed(true)}
-              disabled={loading || Boolean(error)}
+              className="button button-quiet"
+              onClick={() => setRetry((value) => value + 1)}
             >
-              <Eye aria-hidden="true" />
-              {text("legacy.955f77c8a724")}
+              {text("numbers.retry")}
             </button>
-          )}
-        </div>
-      </section>
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
-      <p className="number-generator-note">
-        {text("legacy.b61e91917468")}{" "}
-        {text("legacy.45a08696fded", [numberLanguages.length])}
-      </p>
+          </div>
+        ) : null}
+        {error ? (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          className="button button-primary"
+          disabled={busy || loadFailed || !count}
+        >
+          {saving ? text("numbers.starting") : text("numbers.start")}
+        </button>
+        <p className="number-setup-hint">{text("numbers.saved")}</p>
+      </form>
     </main>
   );
 }

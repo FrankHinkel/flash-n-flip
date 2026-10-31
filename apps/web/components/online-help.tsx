@@ -2,6 +2,8 @@
 
 import { Search } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { DeckCatalog } from "./deck-catalog";
 import { useMemo, useState } from "react";
 
 import { filterHelpTopics, helpTopics } from "./help-content";
@@ -10,8 +12,16 @@ import styles from "./online-help.module.css";
 
 export function OnlineHelp() {
   const { locale, text } = useI18n();
+  const params = useSearchParams();
   const [query, setQuery] = useState("");
   const topics = useMemo(() => filterHelpTopics(query), [query]);
+
+  if (params.get("section") === "examples")
+    return (
+      <main className="app-page">
+        <DeckCatalog helpReferences />
+      </main>
+    );
 
   return (
     <main className={styles.page}>
@@ -25,7 +35,7 @@ export function OnlineHelp() {
         <Link href="/app/decks/new">{text("ui.helpFirst")}</Link>
         <Link href="/app">{text("ui.helpDaily")}</Link>
         <Link href="/app/settings">{text("ui.helpData")}</Link>
-        <Link href="/community#author-reference">
+        <Link href="/app/help?section=examples">
           {text("ui.authorReferences")}
         </Link>
       </nav>

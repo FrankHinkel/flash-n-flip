@@ -10,13 +10,17 @@ const script = source.match(
   /private static let textEntryBridgeScript = """\n([\s\S]*?)\n    """/,
 )![1]!;
 
-function fixture() {
+function fixture(mac = true) {
   const fields: ReturnType<typeof field>[] = [];
   const frames: FrameRequestCallback[] = [];
   const postMessage = vi.fn();
   let mutation = () => {};
   let options: MutationObserverInit | undefined;
   const document = Object.assign(new EventTarget(), {
+    documentElement: {
+      dataset: { appleInterfacePlatform: mac ? "mac" : undefined },
+    },
+    activeElement: null as ReturnType<typeof field> | null,
     querySelectorAll(selector: string) {
       return fields.filter((element) =>
         selector.split(",").includes(element.selector),
@@ -62,6 +66,12 @@ function fixture() {
     get options() {
       return options;
     },
+    hasFocusedTextEntry() {
+      return runInNewContext(
+        "window.__flashNFlipHasFocusedTextEntry()",
+        context,
+      ) as boolean;
+    },
   };
 }
 
@@ -77,8 +87,10 @@ function field(selector = 'input[type="text"]') {
     getBoundingClientRect() {
       return { width: this.width, height: this.height };
     },
-    matches() {
-      return this.disabled || this.readonly;
+    matches(selector: string) {
+      return selector === ":disabled, [readonly]"
+        ? this.disabled || this.readonly
+        : selector.split(",").includes(this.selector);
     },
     closest() {
       return this.inert ? {} : null;
@@ -87,6 +99,108 @@ function field(selector = 'input[type="text"]') {
 }
 
 describe("native WebKit text-input session", () => {
+  it("distinguishes real focused editors from read-only graph/selection focus", () => {
+    const app = fixture();
+    expect(app.hasFocusedTextEntry()).toBe(false);
+    app.document.activeElement = field("svg");
+    expect(app.hasFocusedTextEntry()).toBe(false);
+    const input = field();
+    app.document.activeElement = input;
+    expect(app.hasFocusedTextEntry()).toBe(true);
+    input.readonly = true;
+    expect(app.hasFocusedTextEntry()).toBe(false);
+    input.readonly = false;
+    input.style.display = "none";
+    expect(app.hasFocusedTextEntry()).toBe(false);
+  });
+
+  it("notifies a focus-only change even while the search field remains visible", () => {
+    const app = fixture();
+    const input = field();
+    app.fields.push(input);
+    app.mutate();
+    app.document.activeElement = input;
+    app.document.dispatchEvent(new Event("focusin"));
+    expect(app.postMessage).toHaveBeenCalledTimes(3);
+    app.flush();
+    app.document.activeElement = null;
+    app.document.dispatchEvent(new Event("focusout"));
+    app.flush();
+    expect(app.postMessage.mock.calls).toEqual([
+      [false],
+      [true],
+      [true],
+      [true],
+    ]);
+  });
+
+  it("keeps iPhone/iPad focus changes coalesced without additional native input-state messages", () => {
+    const app = fixture(false);
+    const input = field();
+    app.fields.push(input);
+    app.mutate();
+    app.document.activeElement = input;
+    app.document.dispatchEvent(new Event("focusin"));
+    expect(app.frames).toHaveLength(1);
+    app.flush();
+    expect(app.postMessage.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it("cleans up reopened Mac input sessions without blurring the DOM selection", () => {
+    expect(source).toContain("name: UIResponder.keyboardDidShowNotification");
+    expect(source).toContain(
+      "name: UIResponder.keyboardDidChangeFrameNotification",
+    );
+    const cleanup = source
+      .split("@objc private func macKeyboardDidShow")[1]!
+      .split("@objc private func copyMacSelection")[0]!;
+    expect(cleanup).toContain("ProcessInfo.processInfo.isiOSAppOnMac");
+    expect(cleanup).toContain(
+      "window.__flashNFlipHasFocusedTextEntry?.() ?? true",
+    );
+    expect(cleanup).toContain("webView.endEditing(true)");
+    expect(cleanup).toContain("self.becomeFirstResponder()");
+    expect(cleanup).toContain("!macKeyboardCleanupPending");
+    expect(cleanup).toContain("generation == self.textEntryGeneration");
+    expect(cleanup).toContain("containsFirstResponder(webView)");
+    expect(cleanup).toContain("presentedViewController == nil");
+    expect(cleanup).toContain("isKeyWindow == true");
+    expect(cleanup).not.toContain(".blur");
+    expect(source).toContain("NotificationCenter.default.removeObserver(self");
+  });
+
+  it("keeps Mac read-only Cmd+C write-only and does not overwrite the clipboard for an empty selection", () => {
+    const copy = source
+      .split("@objc private func copyMacSelection")[1]!
+      .split("@objc private func handleMacKeyCommand")[0]!;
+    expect(copy).toContain("isFirstResponder");
+    expect(copy).toContain("window.getSelection()?.toString() ?? ''");
+    expect(copy).toContain("!text.isEmpty");
+    expect(copy).toContain("UIPasteboard.general.string = text");
+    expect(copy).not.toContain("= UIPasteboard.general.string");
+  });
+  it("uses the custom WebView through Capacitor's supported factory", () => {
+    expect(source).toMatch(
+      /override func webView\(with frame: CGRect, configuration: WKWebViewConfiguration\) -> WKWebView \{\s*FlashNFlipWebView\(frame: frame, configuration: configuration\)/,
+    );
+  });
+
+  it("removes only the Mac accessory and preserves system keyboard and iPhone/iPad input views", () => {
+    expect(source).not.toContain("override var inputView:");
+    expect(source).toMatch(
+      /override var inputAccessoryView: UIView\? \{\s*ProcessInfo\.processInfo\.isiOSAppOnMac \? nil : super\.inputAccessoryView/,
+    );
+    expect(source).not.toContain("NSClassFromString");
+    expect(source).not.toContain("object_setClass");
+    expect(source).not.toContain("method_exchangeImplementations");
+  });
+
+  it("prevents Capacitor from restarting the Mac input session on appearance", () => {
+    expect(source).toMatch(
+      /override func instanceDescriptor\(\) -> InstanceDescriptor \{\s*let descriptor = super\.instanceDescriptor\(\)\s*if ProcessInfo\.processInfo\.isiOSAppOnMac \{[\s\S]*?descriptor\.hasInitialFocus = false\s*\}\s*return descriptor/,
+    );
+  });
+
   it("allows Mac card selection independently of visible input fields", () => {
     expect(source).toMatch(
       /isTextInteractionEnabled =\s*ProcessInfo\.processInfo\.isiOSAppOnMac \|\| enabled/,

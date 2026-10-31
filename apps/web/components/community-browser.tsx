@@ -9,6 +9,8 @@ export function CommunityBrowser() {
   useEffect(() => {
     if (window.location.hash === "#icloud")
       router.replace("/app/settings?section=icloud");
+    if (window.location.hash === "#author-reference")
+      router.replace("/app/help?section=examples");
   }, [router]);
   return (
     <main className="app-page discover-page">

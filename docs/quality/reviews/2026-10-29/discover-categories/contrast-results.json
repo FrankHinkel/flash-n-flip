@@ -1,0 +1,497 @@
+{
+  "measuredPairs": 49,
+  "minimum": 4.706039721385033,
+  "failures": [],
+  "rows": [
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-heading h1",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.107294 0.119216 0.14902)",
+      "fontSize": "32.24px",
+      "ratio": 15.346815589770465,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-heading p",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.107294 0.119216 0.14902)",
+      "fontSize": "20.8px",
+      "ratio": 11.76659516745403,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-search label",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.107294 0.119216 0.14902)",
+      "fontSize": "20.8px",
+      "ratio": 15.346815589770465,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-search input",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "20.8px",
+      "ratio": 9.328274303857789,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "24.128px",
+      "ratio": 9.328274303857789,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "24.128px",
+      "ratio": 9.328274303857789,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "24.128px",
+      "ratio": 9.328274303857789,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "24.128px",
+      "ratio": 9.328274303857789,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "19.76px",
+      "ratio": 7.152104402532951,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "19.76px",
+      "ratio": 7.152104402532951,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "19.76px",
+      "ratio": 7.152104402532951,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark overview large text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "19.76px",
+      "ratio": 7.152104402532951,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-heading h1",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.107294 0.119216 0.14902)",
+      "fontSize": "43.68px",
+      "ratio": 15.346815589770465,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-heading p",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.107294 0.119216 0.14902)",
+      "fontSize": "20.8px",
+      "ratio": 11.76659516745403,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-meta",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "19.76px",
+      "ratio": 7.152104402532951,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-detail-actions .button",
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 106, 250)",
+      "fontSize": "20.8px",
+      "ratio": 4.706039721385033,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(216, 217, 221)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "20.8px",
+      "ratio": 7.152104402532951,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "20.8px",
+      "ratio": 9.328274303857789,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "dark reference detail large text",
+      "selector": ".discover-preview-content",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.107294 0.119216 0.14902)",
+      "fontSize": "20.8px",
+      "ratio": 15.346815589770465,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-heading h1",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "24.8px",
+      "ratio": 12.411944725823117,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-heading p",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 4.814313186083642,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-search label",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 12.411944725823117,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-search input",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "16px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "18.56px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "18.56px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "18.56px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category strong",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "18.56px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "15.2px",
+      "ratio": 5.35044797820324,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "15.2px",
+      "ratio": 5.35044797820324,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "15.2px",
+      "ratio": 5.35044797820324,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright overview normal text",
+      "selector": ".discover-category span span",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "15.2px",
+      "ratio": 5.35044797820324,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-heading h1",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "24.8px",
+      "ratio": 12.411944725823117,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-heading p",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 4.814313186083642,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-meta",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "15.2px",
+      "ratio": 5.35044797820324,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-detail-actions .button",
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 106, 250)",
+      "fontSize": "16px",
+      "ratio": 4.706039721385033,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 4.814313186083642,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "16px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "16px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright statistics preview before install",
+      "selector": ".discover-preview-content",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 12.411944725823117,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-heading h1",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "24.8px",
+      "ratio": 12.411944725823117,
+      "required": 3,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-heading p",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 4.814313186083642,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-meta",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "15.2px",
+      "ratio": 5.35044797820324,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-detail-actions .button",
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 106, 250)",
+      "fontSize": "16px",
+      "ratio": 4.706039721385033,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(102, 107, 117)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 4.814313186083642,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "16px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-preview-controls .button",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "16px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-feedback",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "rgb(255, 255, 255)",
+      "fontSize": "16px",
+      "ratio": 13.794172085815958,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "bright success and open action",
+      "selector": ".discover-preview-content",
+      "foreground": "rgb(12, 39, 108)",
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "fontSize": "16px",
+      "ratio": 12.411944725823117,
+      "required": 4.5,
+      "passes": true
+    },
+    {
+      "scenario": "catalog error, dark, short viewport",
+      "selector": "[role=alert]",
+      "foreground": "rgb(247, 246, 242)",
+      "background": "color(srgb 0.244235 0.258039 0.292549)",
+      "fontSize": "16px",
+      "ratio": 9.328274303857789,
+      "required": 4.5,
+      "passes": true
+    }
+  ]
+}

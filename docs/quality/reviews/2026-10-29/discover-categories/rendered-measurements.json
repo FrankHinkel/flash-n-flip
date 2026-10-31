@@ -1,0 +1,1148 @@
+{
+  "scenarios": [
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 107.861328125,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 25.986328125
+          },
+          "text": "EntdeckenFinde etwas, das du lernen möchtest.",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-search:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 213.4765625,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 131.85546875
+          },
+          "text": "Themen oder Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-offer:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 551.1328125,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 283.8671875
+          },
+          "text": "Deutschland: BundesländerLerne die 16 deutschen Bundesländer und ihre Hauptstädte.Englisch",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-offer .button:0",
+          "opacity": "1",
+          "parentId": ".discover-offer:0",
+          "rect": {
+            "bottom": 534.51171875,
+            "left": 28.61328125,
+            "right": 174.74609375,
+            "top": 490.517578125
+          },
+          "text": "Ansehen",
+          "visible": true
+        }
+      ],
+      "name": "search Germany, bright, large text",
+      "theme": "bright",
+      "url": "/community?q=Deutschland",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 107.861328125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 25.986328125
+          },
+          "text": "EntdeckenFinde etwas, das du lernen möchtest.",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-search:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 213.4765625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 131.85546875
+          },
+          "text": "Themen oder Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 367.392578125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 235.46875
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 511.30859375,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 379.384765625
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 686.591796875,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 523.30078125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 830.5078125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 698.583984375
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 764.892578125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "overview top, bright, large text",
+      "theme": "bright",
+      "url": "/community",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 227.392578125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 95.46875
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 371.30859375,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 239.384765625
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 546.591796875,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 383.30078125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 690.5078125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 558.583984375
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 764.892578125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "overview bottom, bright, large text",
+      "theme": "bright",
+      "url": "/community",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 367.392578125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 235.46875
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 511.30859375,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 379.384765625
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 686.591796875,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 523.30078125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 830.5078125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 698.583984375
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(36, 40, 50)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 764.892578125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "overview dark, End requested before smooth scroll settled",
+      "theme": "dark",
+      "url": "/community",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": -73.232421875,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": -205.15625
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 70.68359375,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": -61.240234375
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 245.966796875,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 82.67578125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 389.8828125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 257.958984375
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(36, 40, 50)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 520,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 441.142578125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "overview end, dark, 390x520, large text",
+      "theme": "dark",
+      "url": "/community",
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 1440,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 131.591796875,
+            "left": 325.99609375,
+            "right": 1365.99609375,
+            "top": 35.986328125
+          },
+          "text": "EntdeckenFinde etwas, das du lernen möchtest.",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-search:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 237.20703125,
+            "left": 325.99609375,
+            "right": 1365.99609375,
+            "top": 155.5859375
+          },
+          "text": "Themen oder Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 379.19921875,
+            "left": 325.99609375,
+            "right": 838.994140625,
+            "top": 259.19921875
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 379.19921875,
+            "left": 852.98828125,
+            "right": 1365.99609375,
+            "top": 259.19921875
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 536.81640625,
+            "left": 325.99609375,
+            "right": 838.994140625,
+            "top": 393.193359375
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 536.81640625,
+            "left": 852.98828125,
+            "right": 1365.99609375,
+            "top": 393.193359375
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        }
+      ],
+      "name": "desktop dark 1440x900 large text",
+      "theme": "dark",
+      "url": "/community",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "color(srgb 0.107294 0.119216 0.14902)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-preview-content:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 215.91796875,
+            "left": 28.61328125,
+            "right": 342.63671875,
+            "top": -70.078125
+          },
+          "text": "Undo without rewriting shared historyCommand or patterngit restore <path>git revert <commi",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-preview-controls:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 273.90625,
+            "left": 28.61328125,
+            "right": 342.63671875,
+            "top": 229.912109375
+          },
+          "text": "",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-preview-controls .button:0",
+          "opacity": "1",
+          "parentId": ".discover-preview-controls:0",
+          "rect": {
+            "bottom": 273.90625,
+            "left": 28.61328125,
+            "right": 85.859375,
+            "top": 229.912109375
+          },
+          "text": "",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "fontSize": "20.8px",
+          "fontWeight": "700",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".discover-preview-controls .button:1",
+          "opacity": "1",
+          "parentId": ".discover-preview-controls:0",
+          "rect": {
+            "bottom": 272.90625,
+            "left": 93.857421875,
+            "right": 342.63671875,
+            "top": 228.912109375
+          },
+          "text": "",
+          "visible": true
+        },
+        {
+          "background": "rgb(36, 40, 50)",
+          "fontSize": "20.8px",
+          "fontWeight": "400",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 520,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 441.142578125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "reference preview controls, dark, 390x520, large text",
+      "theme": "dark",
+      "url": "/community?category=programming&offer=developer-reference-library",
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 91.73828125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 25.986328125
+          },
+          "text": "EntdeckenFinde etwas, das du lernen möchtest.",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-search:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 191.728515625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 115.732421875
+          },
+          "text": "Themen oder Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 313.720703125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 213.720703125
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 425.712890625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 325.712890625
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 552.48046875,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 437.705078125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 664.47265625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 564.47265625
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 520,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 450.80078125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "overview bright 390x520 normal text",
+      "theme": "bright",
+      "url": "/community",
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 159.7265625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 13.994140625
+          },
+          "text": "Mathematik & NaturwissenschaftenEinführung in die StatistikVerstehe die Grundlagen mit kur",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-feedback:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 376.923828125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 183.720703125
+          },
+          "text": "„Einführung in die Statistik“ wurde hinzugefügt.Meine DecksZum Lernplan hinzufügen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-detail-summary:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 579.423828125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 396.923828125
+          },
+          "text": "Enthalten20 Karten · 1 DeckEnthaltene Sprachen: DeutschÖffnen",
+          "visible": true
+        },
+        {
+          "background": "rgb(15, 106, 250)",
+          "fontSize": "16px",
+          "fontWeight": "700",
+          "foreground": "rgb(255, 255, 255)",
+          "id": ".discover-detail-actions .button:0",
+          "opacity": "1",
+          "parentId": ".discover-detail-summary:0",
+          "rect": {
+            "bottom": 562.802734375,
+            "left": 28.61328125,
+            "right": 118.1640625,
+            "top": 518.80859375
+          },
+          "text": "Öffnen",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 774.55078125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "statistics added, bright 390x844 normal text",
+      "theme": "bright",
+      "url": "/community?category=science&offer=statistics-introduction",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 91.73828125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 25.986328125
+          },
+          "text": "EntdeckenFinde etwas, das du lernen möchtest.",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-search:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 404.931640625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 328.935546875
+          },
+          "text": "Themen oder Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 526.923828125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 426.923828125
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 638.916015625,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 538.916015625
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 765.68359375,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 650.908203125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 877.67578125,
+            "left": 11.9921875,
+            "right": 359.2578125,
+            "top": 777.67578125
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 774.55078125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "overview with stale success before return-navigation correction",
+      "theme": "bright",
+      "url": "/community",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-heading:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 91.73828125,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 25.986328125
+          },
+          "text": "EntdeckenFinde etwas, das du lernen möchtest.",
+          "visible": true
+        },
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-search:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 191.728515625,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 115.732421875
+          },
+          "text": "Themen oder Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 313.720703125,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 213.720703125
+          },
+          "text": "SprachenWortschatz, Verben und Zahlen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:1",
+          "opacity": "1",
+          "rect": {
+            "bottom": 425.712890625,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 325.712890625
+          },
+          "text": "GeografieWelt, Kontinente und Regionen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:2",
+          "opacity": "1",
+          "rect": {
+            "bottom": 552.48046875,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 437.705078125
+          },
+          "text": "Mathematik & NaturwissenschaftenStatistik und Periodensystem",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".discover-category:3",
+          "opacity": "1",
+          "rect": {
+            "bottom": 664.47265625,
+            "left": 11.9921875,
+            "right": 378.0078125,
+            "top": 564.47265625
+          },
+          "text": "ProgrammierenNachschlagewerke für Entwickler",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav:0",
+          "opacity": "1",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 774.55078125
+          },
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "name": "final overview after install and return, bright 390x844 normal text",
+      "theme": "bright",
+      "url": "/community",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+- main:
+  - 'generic "Ausgewähltes Lernset: Zahlen · Français"':
+    - generic: Zahlen · Français
+  - generic: Lernen · 2 / 10
+  - generic: FRAGE
+  - paragraph:
+    - text: "21"
+    - button "Satz mit Lücken vorlesen":
+- navigation "Mobile App-Navigation":
+  - link "Heute":
+    - /url: /app
+    - generic: Heute
+  - link "Meine Decks":
+    - /url: /app/decks
+    - generic: Meine Decks
+  - link "Entdecken":
+    - /url: /community
+    - generic: Entdecken
+  - link "Einstellungen":
+    - /url: /app/settings
+    - generic: Einstellungen

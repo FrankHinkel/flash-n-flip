@@ -30,5 +30,11 @@ export const editorSaveError = (
     return translateUiMessage(locale, "editor.error.serverSave");
   }
 
-  return translateUiMessage(locale, "editor.error.connection");
+  if (
+    cause instanceof TypeError &&
+    /failed to fetch|networkerror|load failed/i.test(cause.message)
+  ) {
+    return translateUiMessage(locale, "editor.error.connection");
+  }
+  return translateUiMessage(locale, "editor.error.localSave");
 };

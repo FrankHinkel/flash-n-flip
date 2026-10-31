@@ -1,0 +1,6 @@
+  - 0 : "FNF_WINDOW type=UIWindow hidden=false frame=(0.0, 0.0, 845.0, 688.0) rootResponder=true"
+  - 1 : "FNF_WINDOW type=UITextEffectsWindow hidden=false frame=(0.0, 0.0, 845.0, 688.0) rootResponder=false"
+  - 2 : "FNF_SURFACE type=_UICursorAccessoryHostView hidden=true rect=(0.0, 0.0, 845.0, 688.0)"
+  - 3 : "FNF_SURFACE type=_UICursorAccessoryView hidden=true rect=(0.0, 0.0, 0.0, 0.0)"
+  - 4 : "FNF_SURFACE type=UIInputSetContainerView hidden=false rect=(0.0, 0.0, 845.0, 688.0)"
+  - 5 : "FNF_SURFACE type=UIInputSetHostView hidden=false rect=(0.0, 688.0, 845.0, 343.0)"
