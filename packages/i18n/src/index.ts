@@ -241,7 +241,7 @@ const semanticUiMessages = {
     fr: "{0} répétition terminée.",
   },
   "study.cardsPractised.singular": {
-    en: "{0} card practised.",
+    en: "{0} card practiced.",
     de: "{0} Karte geübt.",
     es: "{0} tarjeta practicada.",
     fr: "{0} carte pratiquée.",
@@ -823,7 +823,7 @@ const semanticUiMessages = {
     fr: "Référence actuelle",
   },
   "study.completePractice": {
-    en: "All cards were practised without changing your progress.",
+    en: "All cards were practiced without changing your progress.",
     de: "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern.",
     es: "Has practicado todas las tarjetas sin modificar tu progreso.",
     fr: "Toutes les cartes ont été travaillées sans modifier votre progression.",

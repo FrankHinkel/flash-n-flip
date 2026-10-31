@@ -16,7 +16,7 @@ export default function PianofortePage() {
     <main id="main" className={styles.main}>
       <section className={styles.hero} aria-labelledby="pianoforte-title">
         <div>
-          <p className={styles.eyebrow}>A better way to practise piano</p>
+          <p className={styles.eyebrow}>A better way to practice piano</p>
           <h1 id="pianoforte-title">
             Music first.
             <br />
@@ -24,7 +24,7 @@ export default function PianofortePage() {
           </h1>
           <p className={styles.lead}>
             Pianoforte brings a readable score, falling notes and your piano
-            together. Practise one hand with accompaniment, let the app find
+            together. Practice one hand with accompaniment, let the app find
             your place in the music, or slow down and loop a tricky passage —
             without an account or subscription.
           </p>
@@ -58,7 +58,7 @@ export default function PianofortePage() {
           <span aria-hidden="true">02</span>
           <h2>Play together</h2>
           <p>
-            Practise one hand while Pianoforte automatically plays the other.
+            Practice one hand while Pianoforte automatically plays the other.
           </p>
         </article>
         <article>

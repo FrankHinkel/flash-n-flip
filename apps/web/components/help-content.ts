@@ -207,14 +207,14 @@ export const helpTopics: HelpTopic[] = [
       },
       {
         heading: {
-          en: "Practise numbers",
+          en: "Practice numbers",
           de: "Zahlen üben",
           es: "Practicar números",
           fr: "Travailler les nombres",
         },
         paragraphs: [
           {
-            en: "Under Discover → Languages → Practise numbers, choose a target language and combine 0–10, 11–100 and 101–1000. The compact selection follows the language’s cardinal-number patterns. For 11–100 you can choose all 90 numbers. Start learning saves one deck per target language and opens regular study. Digits stay visible; reveal the answer to see the number word. Changing ranges pauses excluded numbers and preserves their progress. Previous variable-number collections remain available separately.",
+            en: "Under Discover → Languages → Practice numbers, choose a target language and combine 0–10, 11–100 and 101–1000. The compact selection follows the language’s cardinal-number patterns. For 11–100 you can choose all 90 numbers. Start learning saves one deck per target language and opens regular study. Digits stay visible; reveal the answer to see the number word. Changing ranges pauses excluded numbers and preserves their progress. Previous variable-number collections remain available separately.",
             de: "Unter Entdecken → Sprachen → Zahlen üben wählst du die Zielsprache und kombinierst 0–10, 11–100 und 101–1000. Die kompakte Auswahl folgt den Zahlbildungsmustern der Sprache. Für 11–100 kannst du alle 90 Zahlen wählen. Lernen starten speichert ein Deck pro Zielsprache und öffnet das normale Lernen. Die Ziffer bleibt sichtbar; das Zahlwort erscheint beim Aufdecken. Bei Bereichsänderungen werden ausgeschlossene Zahlen pausiert, ihr Fortschritt bleibt erhalten. Bisherige Sammlungen mit wechselnden Zahlen bleiben getrennt verfügbar.",
             es: "En Descubrir → Idiomas → Practicar números, elige el idioma y combina 0–10, 11–100 y 101–1000. La selección compacta sigue los patrones de los números cardinales del idioma. Para 11–100 puedes elegir los 90 números. Empezar a aprender guarda un mazo por idioma y abre el estudio habitual. Las cifras permanecen visibles; al revelar la respuesta aparece el número en letras. Cambiar los rangos pausa los números excluidos y conserva su progreso. Las colecciones anteriores de números variables siguen disponibles por separado.",
             fr: "Dans Découvrir → Langues → Travailler les nombres, choisissez la langue et combinez 0–10, 11–100 et 101–1000. La sélection compacte suit les constructions des nombres cardinaux de la langue. Pour 11–100, vous pouvez choisir les 90 nombres. Commencer à apprendre enregistre un paquet par langue et ouvre l’étude habituelle. Les chiffres restent visibles ; le nombre en lettres apparaît avec la réponse. Modifier les plages met les nombres exclus en pause et conserve leur progression. Les anciennes collections de nombres variables restent disponibles séparément.",
@@ -956,7 +956,7 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "A compact two-staff piano transcription with simultaneous notes. Copy the complete block into the ABC source field; use select=RH or select=LH to practise one hand.",
+            en: "A compact two-staff piano transcription with simultaneous notes. Copy the complete block into the ABC source field; use select=RH or select=LH to practice one hand.",
             de: "Eine kompakte Klavierübertragung auf zwei Systemen mit gleichzeitigen Tönen. Kopiere den vollständigen Block in das ABC-Feld; mit select=RH oder select=LH kannst du eine Hand üben.",
             es: "Una transcripción compacta para piano en dos pentagramas con notas simultáneas. Copia el bloque completo al campo de origen ABC; usa select=RH o select=LH para practicar una mano.",
             fr: "Une transcription pianistique compacte sur deux systèmes avec des notes simultanées. Copiez le bloc complet dans le champ source ABC ; utilisez select=RH ou select=LH pour pratiquer une main.",

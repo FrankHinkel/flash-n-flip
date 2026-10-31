@@ -12,7 +12,7 @@ export const numberUiMessages = {
     "Coréen (nombres sino-coréens)",
   ),
   "numbers.fullVocabulary": message(
-    "For this language, all number words from 11 to 100 are practised. Digits are always shown.",
+    "For this language, all number words from 11 to 100 are practiced. Digits are always shown.",
     "Für diese Sprache werden von 11 bis 100 alle Zahlwörter geübt. Die Ziffer bleibt immer sichtbar.",
     "En este idioma se practican todos los números del 11 al 100. Las cifras siempre están visibles.",
     "Pour cette langue, tous les nombres de 11 à 100 sont travaillés. Les chiffres restent toujours visibles.",
@@ -24,7 +24,7 @@ export const numberUiMessages = {
     "Choisissez la langue et les plages de nombres.",
   ),
   "numbers.target": message(
-    "Language to practise",
+    "Language to practice",
     "Zielsprache",
     "Idioma que practicar",
     "Langue à travailler",
@@ -36,7 +36,7 @@ export const numberUiMessages = {
     "Plages de nombres",
   ),
   "numbers.all": message(
-    "Practise all 90 numbers from 11 to 100",
+    "Practice all 90 numbers from 11 to 100",
     "Alle 90 Zahlen von 11 bis 100 üben",
     "Practicar los 90 números del 11 al 100",
     "Travailler les 90 nombres de 11 à 100",

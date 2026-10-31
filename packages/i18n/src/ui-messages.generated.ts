@@ -4305,7 +4305,7 @@ export const generatedUiMessages = {
     fr: "Volume sonore de base",
   },
   "legacy.cb6a26e789d6": {
-    en: "{0} cards practised.",
+    en: "{0} cards practiced.",
     de: "{0} Karten geübt.",
     es: "{0} tarjetas practicadas.",
     fr: "{0} cartes pratiquées.",

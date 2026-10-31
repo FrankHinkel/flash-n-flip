@@ -93,7 +93,7 @@ export const discoverUiMessages = {
     "Conjugaison",
   ),
   "discover.description.conjugations": message(
-    "Practise verb forms in four languages, organised by tense.",
+    "Practice verb forms in four languages, organised by tense.",
     "Übe Verbformen in vier Sprachen, geordnet nach Zeitformen.",
     "Practica formas verbales en cuatro idiomas, por tiempos.",
     "Travaillez les formes verbales dans quatre langues, par temps.",
@@ -111,7 +111,7 @@ export const discoverUiMessages = {
     "Apprenez les principales formes irrégulières dans quatre langues.",
   ),
   "discover.offer.numbers": message(
-    "Practise numbers",
+    "Practice numbers",
     "Zahlen üben",
     "Practicar números",
     "Travailler les nombres",

@@ -287,7 +287,7 @@ describe("Discover category, preview and install flow", () => {
   it("opens number configuration directly with the selected catalog language", async () => {
     at("category=languages&language=fr");
     const link = await screen.findByRole("link", {
-      name: "Create exercises: Practise numbers",
+      name: "Create exercises: Practice numbers",
     });
     expect(link.getAttribute("href")).toBe("/community/numbers?language=fr");
     expect(state.install).not.toHaveBeenCalled();

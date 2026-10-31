@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/apple",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "scripts": {
     "build": "pnpm -w version:check && pnpm --filter @flashcards/direct-connect-webstack build:apple-local && tsc --noEmit && capacitor sync ios",
